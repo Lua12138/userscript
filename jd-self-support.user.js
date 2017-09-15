@@ -6,7 +6,7 @@
 // @include     *://list.jd.com/list.html?*
 // @include     *://search.jd.com/Search?*
 // @run-at      document-idle
-// @updateURL   https://raw.githubusercontent.com/gam2046/userscript/master/jd.self.support.user.js
+// @updateURL   https://github.com/gam2046/userscript/raw/master/jd-self-support.user.js
 // @supportURL  https://github.com/gam2046/userscript/issues/new
 // @version     0.2
 // ==/UserScript==
