@@ -8,23 +8,62 @@
 // @run-at      document-idle
 // @updateURL   https://raw.githubusercontent.com/gam2046/userscript/master/jd.self.support.user.js
 // @supportURL  https://github.com/gam2046/userscript/issues/new
-// @version     0.1
+// @version     0.2
 // ==/UserScript==
 
-function findJdSelfSupport() {
-    console.log("beginning to find jd self support goods.");
-    var items = $(".gl-item");
-    var count = 0;
-    for (var n = 0; n < items.length; n++) {
-        var item = items[n];
-        if (item.innerHTML.match("//item\.jd\.com/\\d{6,7}.html") == null) {
-            item.remove();
-            count++;
-            console.log("Hidden index of " + n);
+(function () {
+    'use strict';
+
+    var selected = false;
+    var liTagName = "fd_show_jd_self_support";
+    var aTagName = "fd_shown_jd_self_support_link";
+
+    function findJdSelfSupport() {
+        console.log("beginning to find jd self support goods.");
+        var items = $(".gl-item");
+        var count = 0;
+        for (var n = 0; n < items.length; n++) {
+            var item = items[n];
+            if (selected) { // 选中对话框
+                if (item.innerHTML.match("//item\.jd\.com/\\d{6,7}.html") == null) {
+                    item.hidden = true;
+                    count++;
+                    console.log("Hidden index of " + n);
+                }
+            } else {
+                item.hidden = false;
+            }
         }
+
+        console.log("Total items " + items.length + " blocked " + count);
     }
 
-    console.log("Total items " + items.length + " blocked " + count);
-}
+    function addCheckbox() {
+        if (document.getElementById(liTagName) != null) {
+            document.getElementById(aTagName).className = selected ? "selected" : "";
+            return;
+        }
 
-window.setInterval(findJdSelfSupport, 1000);
+        var ul = document.getElementById("J_feature").children[0];
+        var li = document.createElement("li");
+        var a = document.createElement("a");
+
+        a.id = aTagName;
+        a.href = "javascript:;";
+        a.className = selected ? "selected" : "";
+        a.innerHTML = "<i></i>仅显示京东自营商品";
+        a.onclick = clickCheckbox;
+
+        li.id = liTagName;
+        li.appendChild(a);
+        ul.appendChild(li);
+    }
+
+    function clickCheckbox() {
+        selected = !selected;
+        addCheckbox();
+    }
+
+    window.setInterval(findJdSelfSupport, 2000);
+    window.setInterval(addCheckbox, 2000);
+})();
