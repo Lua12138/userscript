@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name        京东自营商品展示
 // @namespace   gam2046.github.com
-// @description 过滤京东商品页，仅显示自营商品
+// @description 过滤京东商品页，仅显示自营商品，在列表筛选中会新增一项可以勾选是否仅显示自营商品
 // @author      forDream
 // @include     *://list.jd.com/list.html?*
 // @include     *://search.jd.com/Search?*
