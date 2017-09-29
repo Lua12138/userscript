@@ -8,7 +8,7 @@
 // @run-at      document-idle
 // @updateURL   https://github.com/gam2046/userscript/raw/master/jd-self-support.user.js
 // @supportURL  https://github.com/gam2046/userscript/issues/new
-// @version     0.3.1
+// @version     0.4.1
 // ==/UserScript==
 
 (function () {
@@ -19,7 +19,14 @@
         selfGoodsCount: 0,
         originalPager: undefined,
         bottomPageText: undefined,
-        pagerText: function () { return "当前已加载" + SEARCH.current_page + "页    共计" + SEARCH.adv_param.page_count + "页"; },
+        selfPattern: '//item\.jd\.com/\\d{6,7}.html',
+        isCategoryPage: function () { return window.location.host == 'list.jd.com'; },
+        pagerText: function () {
+            if (extension.isCategoryPage())
+                return '当前已加载' + SEARCH.adv_param.page + '页';
+            else
+                return "当前已加载" + SEARCH.current_page + "页    共计" + SEARCH.adv_param.page_count + "页";
+        },
         const: {
             aTagName: "fd_shown_jd_self_support_link",
             liTagName: "fd_shown_jd_self_support"
@@ -40,7 +47,7 @@
             for (var n = 0; n < items.length; n++) {
                 var item = items[n];
                 if (extension.extensionSwitch) { // 选中对话框
-                    if (item.innerHTML.match("//item\.jd\.com/\\d{6,7}.html") == null) {
+                    if (item.innerHTML.match(extension.selfPattern) == null) {
                         item.hidden = true;
                         count++;
                         console.log("Hidden index of " + n);
@@ -85,22 +92,28 @@
             extension.funcModifyPagerJumper();
         },
         funcRequestGoods: function () {
-            var totalPage = SEARCH.adv_param.page_count;
-            var currentPage = SEARCH.current_page;
-
-            if (currentPage < totalPage) {
-                SEARCH.scroll();
-                extension.bottomPageText.innerText = extension.pagerText();
+            // 根据页面分类加载下一页
+            if (extension.isCategoryPage()) {
+                extension.funcCategoryRequestGoods();
             } else {
-                alert("已经到达最后一页，无法继续翻页");
+                var totalPage = SEARCH.adv_param.page_count;
+                var currentPage = SEARCH.current_page;
+
+                if (currentPage < totalPage) {
+                    SEARCH.scroll();
+                } else {
+                    alert("已经到达最后一页，无法继续翻页");
+                }
             }
+            // 更新页脚
+            extension.bottomPageText.innerText = extension.pagerText();
         },
         funcModifyPagerJumper: function () {
             var pageWrap = document.getElementById("J_bottomPage");
             var modifyTagId = "fd_bottomPage";
 
             if (extension.extensionSwitch) {
-                if (!SEARCH || !SEARCH.scroll) return; // 部分页面没有该对象则不修改页脚
+                // if (!SEARCH || !SEARCH.scroll) return; // 部分页面没有该对象则不修改页脚
                 // modify
                 pageWrap.hidden = true;
 
@@ -133,6 +146,51 @@
                 var modifyBottom = document.getElementById(modifyTagId);
                 if (modifyBottom) modifyBottom.remove();
             }
+        },
+        funcCategoryRequestGoods: function () {
+            var page = parseInt(SEARCH.adv_param.page) + 1;
+            var requestBaseUrl = 'https://list.jd.com/list.html?cat=';
+            var requestArgs = [];
+            requestArgs.push(SEARCH.adv_param.cid1);
+            requestArgs.push(SEARCH.adv_param.cid2);
+            requestArgs.push(SEARCH.adv_param.cid3);
+
+            var url = requestBaseUrl + requestArgs.join() + '&page=' + page;
+
+            console.log('Try to connect next page', url);
+
+            $.get(url, function (data, status) {
+                if (status != 'success') {
+                    alert('加载下一页内容失败');
+                    return;
+                }
+
+                var div = document.createElement("div");
+                div.innerHTML = data;
+                var dom = div.childNodes;
+
+                var items = div.getElementsByClassName('gl-item');
+                console.log('items is ', items);
+
+                var ul = document.getElementsByClassName('gl-warp clearfix')[0];
+
+                for (var n = 0; n < items.length; n++) {
+                    var item = items[n];
+                    if (item.innerHTML.match(extension.selfPattern) != null) {
+                        console.log('Find a self goods');
+                        var imgs = item.getElementsByTagName("img");
+                        for (var k = 0; k < imgs.length; k++) {
+                            var img=imgs[k];
+                            if (img && img.dataset.lazyImg)
+                                img.src = dataset.lazyImg;
+                        }
+                        ul.appendChild(item);
+                    }
+                }
+            });
+            // 翻页
+            SEARCH.adv_param.page = page;
+            console.log('Turn to page', page);
         }
     };
 
