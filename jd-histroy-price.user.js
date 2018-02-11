@@ -4,11 +4,11 @@
 // @namespace   https://github.com/gam2046/userscript
 // @description Shown histroy price of JD
 // @description:zh-CN [无广告]一目了然显示京东商城历史价格，没有其他额外功能。Chrome 64.+中测试通过，其他环境不保证可用。
-// @include     *://item.jd.com/*
+// @include     /http(?:s|)://item\.jd\.(?:[^./]+)/\d+\.html/
 // @require     https://cdnjs.cloudflare.com/ajax/libs/Chart.js/2.7.1/Chart.bundle.min.js
 // @updateURL   https://github.com/gam2046/userscript/raw/master/jd-histroy-price.user.js
 // @supportURL  https://github.com/gam2046/userscript/issues/new
-// @version     2
+// @version     3
 // @grant       GM_xmlhttpRequest
 // @copyright   2018+, forDream <gan2046#gmail.com>
 // @author      forDream
