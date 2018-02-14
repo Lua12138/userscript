@@ -24,8 +24,7 @@
     function isMobileDevice() {
         try {
             document.createEvent("TouchEvent");
-            return ('ontouchstart' in document.documentElement) &&
-                (navigator.maxTouchPoints > 0 || 'ontouchstart' in document.documentElement) &&
+            return (navigator.maxTouchPoints > 0 || 'ontouchstart' in document.documentElement) &&
                 window.orientation > -1;
         }
         catch (e) {
