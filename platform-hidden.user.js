@@ -4,7 +4,7 @@
 // @namespace                   https://github.com/gam2046/userscript
 // @description                 Customize browser platform information so that you can freely access the mobile or desktop side of the target web site. This script is only valid for JavaScript detection and invalid for server-side detection.
 // @description:zh-CN           自定义浏览器平台信息，以便于你可以自由访问目标网站的移动端或者桌面端。此脚本仅针对JavaScript检测有效，对于服务端检测无效。
-// @version                     1
+// @version                     2
 // @match                       *://*/*
 // @run-at                      document-start
 // @grant                       GM_getValue
@@ -13,7 +13,7 @@
 // @grant                       GM_registerMenuCommand
 // @supportURL                  https://github.com/gam2046/userscript/issues/new
 // @updateURL                   https://github.com/gam2046/userscript/raw/master/platform-hidden.user.js
-// @require                     https://raw.github.com/odyniec/MonkeyConfig/master/monkeyconfig.js
+// @require                     https://greasyfork.org/scripts/38445-monkeyconfig/code/MonkeyConfig.js
 // @copyright                   2018+, forDream <gan2046#gmail.com>
 // @author                      forDream
 // ==/UserScript==
