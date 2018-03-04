@@ -1,15 +1,16 @@
 // ==UserScript==
-// @name        JD_Histroy_Price
-// @name:zh-CN  京东历史价格
+// @name        JD_Tmall_Taobao_Histroy_Price
+// @name:zh-CN  京东/天猫/淘宝历史价格
 // @namespace   https://github.com/gam2046/userscript
 // @description Shown histroy price of JD
-// @description:zh-CN [无广告]一目了然显示京东商城历史价格，没有其他额外功能。Chrome 64.+中测试通过，其他环境不保证可用。
-// @include     /http(?:s|)://item\.(jd|yiyaojd)\.(?:[^./]+)/\d+\.html/
+// @description:zh-CN [无广告] 一目了然显示京东/天猫商城，淘宝集市历史价格，没有其他额外功能。Chrome 64.+中测试通过，其他环境不保证可用。
+// @include     /http(?:s|)://item\.(?:jd|yiyaojd)\.(?:[^./]+)/\d+\.html/
+// @include     /http(?:s|)://(?:detail|item)\.(?:taobao|tmall)\.(?:[^./]+)/item.htm/
 // @require     https://cdnjs.cloudflare.com/ajax/libs/Chart.js/2.7.1/Chart.bundle.min.js
 // @updateURL   https://github.com/gam2046/userscript/raw/master/jd-histroy-price.user.js
 // @supportURL  https://github.com/gam2046/userscript/issues/new
 // @run-at      document-idle
-// @version     5
+// @version     6
 // @grant       GM_xmlhttpRequest
 // @copyright   2018+, forDream <gan2046#gmail.com>
 // @author      forDream
@@ -32,8 +33,30 @@
             var D = date.getDate();
             return Y + M + D;
         },
-        currentGoodsId: /(\d+)\.html/.exec(window.location.href)[1],
-        currentGoodsName: document.getElementsByClassName("sku-name")[0].innerText.trim(),
+        currentGoodsId: function () {
+            switch (extension.currentSite()) {
+                case "jd":
+                    return /(\d+)\.html/.exec(window.location.href)[1];
+                case "taobao":
+                    return /(?:&|\?)id=(\d+)/.exec(window.location.href)[1];
+            }
+
+        },
+        currentSite: function () {
+            if (/(jd|yiyaojd)\.com/.test(window.location.host)) {
+                return "jd";
+            } else if (/(taobao|tmall)\.com/.test(window.location.host)) {
+                return "taobao";
+            }
+        },
+        currentGoodsName: function () {
+            switch (extension.currentSite()) {
+                case "jd":
+                    return document.getElementsByClassName("sku-name")[0].innerText.trim();
+                case "taobao":
+                    return document.title.replace("-tmall.com天猫", "").replace("-淘宝网", "");
+            }
+        },
         sourcePriceJson: undefined,
         canvasId: "forDream_Canvas_Chart_12138",
         chart: undefined,
@@ -54,12 +77,27 @@
             return option;
         },
         xhrError: function () { console.log("XHR ERROR"); },
+        queryRequestUrl: function () {
+            var id = "";
+            switch (extension.currentSite()) {
+                case "jd":
+                    id = extension.currentGoodsId() + "-3";
+                    break;
+                case "taobao":
+                    id = extension.currentGoodsId();
+                    break;
+            }
+            return "https://browser.gwdang.com/extension?ac=price_trend&dp_id=" +
+                id + "&union=union_gwdang&version=1518335403103&from_device=default&_=" +
+                Date.parse(new Date());
+        },
         doQuery: function () {
-            var requestUrl = "https://browser.gwdang.com/extension?ac=price_trend&dp_id=" + extension.currentGoodsId + "-3&union=union_gwdang&version=1516933775230&from_device=default&_=" + Date.parse(new Date());
+            var requestUrl = extension.queryRequestUrl();
             GM_xmlhttpRequest({
                 url: requestUrl,
                 method: "GET",
                 onload: function (details) {
+                    console.log("Receive Data", JSON.parse(details.responseText));
                     extension.sourcePriceJson = JSON.parse(details.responseText);
                     extension.processQuery();
                     extension.injectButton();
@@ -178,12 +216,9 @@
             }
         },
         injectButton: function () {
+            console.log("Try to set button on UI");
             var button = document.createElement("select");
-            button.className = "btn-special1 btn-lg";
-            // button.href = "#";
-            // button.onmouseenter = extension.showHistroyPannel;
-            // button.onmouseleave = extension.hideHistroyPannel;
-            // button.innerText = "历史价格";
+
             button.appendChild(extension.createSelectOption("完整历史价格", 0));
             button.appendChild(extension.createSelectOption("最近七天历史价格", -7));
             button.appendChild(extension.createSelectOption("最近一月历史价格", -30));
@@ -206,11 +241,20 @@
 
             var canvas = document.createElement("canvas");
             canvas.id = extension.canvasId;
-
-            // canvas.style.display = "none";
-            document.getElementsByClassName("choose-btns clearfix")[0].appendChild(button);
             div.appendChild(canvas);
-            document.getElementsByClassName("product-intro clearfix")[0].appendChild(div);
+            // canvas.style.display = "none";
+            switch (extension.currentSite()) {
+                case "jd":
+                    button.className = "btn-special1 btn-lg";
+                    document.getElementsByClassName("choose-btns clearfix")[0].appendChild(button);
+                    document.getElementsByClassName("product-intro clearfix")[0].appendChild(div);
+                    break
+                case "taobao":
+                    button.style = "width: 180px;height:38px;color: #FFF;border-color: #F40;background: #F40;"
+                    document.getElementById("detail").appendChild(div);
+                    document.getElementsByClassName("tb-action")[0].appendChild(button);
+                    break;
+            }
             extension.showHistroyPannel();
         },
         showHistroyPannel: function () {
@@ -234,7 +278,7 @@
                             // animation: {},
                             title: {
                                 display: true,
-                                text: extension.currentGoodsName
+                                text: extension.currentGoodsName()
                             },
                             hover: {
                                 mode: 'nearest',
@@ -270,5 +314,5 @@
         }
     };
 
-    extension.doQuery();
+    (function () { extension.doQuery(); })();
 })();
