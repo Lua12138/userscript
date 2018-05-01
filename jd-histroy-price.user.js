@@ -10,7 +10,7 @@
 // @updateURL   https://github.com/gam2046/userscript/raw/master/jd-histroy-price.user.js
 // @supportURL  https://github.com/gam2046/userscript/issues/new
 // @run-at      document-idle
-// @version     6
+// @version     7
 // @grant       GM_xmlhttpRequest
 // @copyright   2018+, forDream <gan2046#gmail.com>
 // @author      forDream
@@ -43,7 +43,7 @@
 
         },
         currentSite: function () {
-            if (/(jd|yiyaojd)\.com/.test(window.location.host)) {
+            if (/(jd|yiyaojd)\.(com|hk)/.test(window.location.host)) {
                 return "jd";
             } else if (/(taobao|tmall)\.com/.test(window.location.host)) {
                 return "taobao";
