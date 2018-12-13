@@ -10,309 +10,458 @@
 // @updateURL   https://github.com/gam2046/userscript/raw/master/jd-histroy-price.user.js
 // @supportURL  https://github.com/gam2046/userscript/issues/new
 // @run-at      document-idle
-// @version     7
+// @version     8
 // @grant       GM_xmlhttpRequest
 // @copyright   2018+, forDream <gan2046#gmail.com>
 // @author      forDream
 // ==/UserScript==
 (function () {
-    'use strict';
-
-    var extension = {
-        isUndefined: function (obj) { return typeof (obj) == "undefined" || obj == null; },
-        timestampToDateObject: function (timestamp) {
+    class Utils {
+        /**
+            * 将时间戳转换为对象
+            * @param timestamp 时间戳
+            */
+        static timestampToDateObject(timestamp) {
             while (timestamp < 1000000000000) {
                 timestamp *= 10;
             }
             return new Date(timestamp);
-        },
-        timestampToDateString: function (timestamp) {
-            var date = extension.timestampToDateObject(timestamp);
+        }
+
+        /**
+         * 将时间戳转换成时间字符串
+         * @param timestamp 时间戳
+         */
+        static timestampToDateString(timestamp) {
+            var date = Utils.timestampToDateObject(timestamp);
             var Y = date.getFullYear() + '-';
             var M = (date.getMonth() + 1 < 10 ? '0' + (date.getMonth() + 1) : date.getMonth() + 1) + '-';
             var D = date.getDate();
             return Y + M + D;
-        },
-        currentGoodsId: function () {
-            switch (extension.currentSite()) {
-                case "jd":
-                    return /(\d+)\.html/.exec(window.location.href)[1];
-                case "taobao":
-                    return /(?:&|\?)id=(\d+)/.exec(window.location.href)[1];
-            }
+        }
 
-        },
-        currentSite: function () {
-            if (/(jd|yiyaojd)\.(com|hk)/.test(window.location.host)) {
-                return "jd";
-            } else if (/(taobao|tmall)\.com/.test(window.location.host)) {
-                return "taobao";
+        static sleep(ms) {
+            return new Promise(resolve => setTimeout(resolve, ms));
+        }
+    }
+
+    class SupportSite {
+        constructor() {
+            // 用于绘制图表
+            this.canvas = document.createElement('canvas')
+            this.injeried = false
+            this.injeryButton = document.createElement('select')
+            this.injeryButton.appendChild(this.createSelectOption("完整历史价格", 0));
+            this.injeryButton.appendChild(this.createSelectOption("最近七天历史价格", -7));
+            this.injeryButton.appendChild(this.createSelectOption("最近一月历史价格", -30));
+            this.injeryButton.appendChild(this.createSelectOption("最近三月历史价格", -90));
+            this.injeryButton.appendChild(this.createSelectOption("最近半年历史价格", -180));
+            this.injeryButton.dataset.currentValue = 0;
+
+            // 改变展现周期
+            this.injeryButton.addEventListener('click', (event) => {
+                // TODO 完成相关逻辑
+            })
+        }
+
+        createSelectOption(text, value) {
+            const option = document.createElement('option')
+            option.innerText = text
+            option.value = value
+            return option
+        }
+        /**
+         * 子类应该复写
+         *
+         * 返回当前的商品ID
+         */
+        goodsId() { throw 'UnImplementation' }
+
+        /**
+         * 子类应该复写
+         *
+         * 返回当前页面的商品名称
+         */
+        goodsName() { throw 'UnImplementation' }
+
+        /**
+         * 子类应该复写
+         *
+         * 返回当前类所处理的网站名称
+         */
+        siteName() { throw 'UnImplementation' }
+
+        /**
+         * 子类应该复写
+         *
+         * 返回当前页面是否由该类进行处理
+         */
+        isMatch() { throw 'UnImplementation' }
+
+        /**
+         * 子类应该复写
+         * 
+         * 将图表元素插入到适当的位置
+         */
+        injeryCanvas() { throw 'UnImplementaion' }
+        /**
+         * 
+         * 返回图表元素，返回时，此方法应当已经将相关元素插入网页中
+         */
+        chartCanvas() {
+            if (!this.injeried) {
+                this.injeryCanvas(this.canvas)
+                this.injeried = true
             }
-        },
-        currentGoodsName: function () {
-            switch (extension.currentSite()) {
-                case "jd":
-                    return document.getElementsByClassName("sku-name")[0].innerText.trim();
-                case "taobao":
-                    return document.title.replace("-tmall.com天猫", "").replace("-淘宝网", "");
-            }
-        },
-        sourcePriceJson: undefined,
-        canvasId: "forDream_Canvas_Chart_12138",
-        chart: undefined,
-        chartData: undefined,
-        chartColors: {
-            red: 'rgb(255, 99, 132)',
-            orange: 'rgb(255, 159, 64)',
-            yellow: 'rgb(255, 205, 86)',
-            green: 'rgb(75, 192, 192)',
-            blue: 'rgb(54, 162, 235)',
-            purple: 'rgb(153, 102, 255)',
-            grey: 'rgb(201, 203, 207)'
-        },
-        createSelectOption: function (text, value) {
-            var option = document.createElement("option");
-            option.innerText = text;
-            option.value = value;
-            return option;
-        },
-        xhrError: function () { console.log("XHR ERROR"); },
-        queryRequestUrl: function () {
-            var id = "";
-            switch (extension.currentSite()) {
-                case "jd":
-                    id = extension.currentGoodsId() + "-3";
-                    break;
-                case "taobao":
-                    id = extension.currentGoodsId();
-                    break;
-            }
-            return "https://browser.gwdang.com/extension?ac=price_trend&dp_id=" +
-                id + "&union=union_gwdang&version=1518335403103&from_device=default&_=" +
-                Date.parse(new Date());
-        },
-        doQuery: function () {
-            var requestUrl = extension.queryRequestUrl();
+            return this.canvas
+        }
+    }
+
+    /**
+     * 数据源抽象
+     */
+    class DataSource {
+        /**
+         *
+         * @param limit 限制显示的天数，大于等于0为不限制，负数代表限制的天数
+         */
+        constructor(limit) {
+            this.limit = limit
+            /**
+             * 历史价格 仅当价格发生变化时，存在记录
+             * 连续数天价格一致则不存储重复记录
+             * key 为时间戳
+             * value 为价格
+             */
+            this.price = new Map()
+
+            this.ready = false
+        }
+        /**
+         * 返回查询历史价格的目标地址
+         * @param site 准备查询的站点信息
+         */
+        queryHistoryUrl(site) {
+            throw 'UnImplementation'
+        }
+
+        requestOnError() {
+            alert('查询历史记录错误')
+        }
+
+        requestOnAbort() {
+            alert('查询历史记录被终止')
+        }
+
+        requestOnTimeout() {
+            alert('查询历史记录超时')
+        }
+
+        /**
+         * 数据源是否已经准备就绪
+         */
+        isReady() {
+            return this.ready
+        }
+
+        waitForReady(timeout) {
+            return new Promise(async function (resolve, reject) {
+                const interval = 500
+                const successFlag = -4096
+                let t = timeout
+                if (t < 1) {
+                    t = 65536
+                }
+
+                while (t > 0) {
+                    window.setTimeout(() => {
+                        if (this.isReady()) {
+                            t = successFlag // 直接跳出循环
+                        }
+                    }, interval)
+
+                    t -= interval
+
+                    await Utils.sleep(interval)
+                }
+
+                if (t == successFlag) {
+                    resolve()
+                } else {
+                    reject()
+                }
+            }.bind(this))
+        }
+        /**
+         * 子类复写
+         *
+         * 查询结果完成
+         */
+        // requestOnLoad(details) {
+        // throw 'UnImplementation'
+        // }
+
+        request(site) {
+            const requestUrl = this.queryHistoryUrl(site)
             GM_xmlhttpRequest({
                 url: requestUrl,
                 method: "GET",
-                onload: function (details) {
-                    console.log("Receive Data", JSON.parse(details.responseText));
-                    extension.sourcePriceJson = JSON.parse(details.responseText);
-                    extension.processQuery();
-                    extension.injectButton();
-                },
-                onerror: extension.xhrError,
-                onabort: extension.xhrError,
-                ontimeout: extension.xhrError
+                onload: this.requestOnLoad.bind(this),
+                onerror: this.requestOnError,
+                onabort: this.requestOnAbort,
+                ontimeout: this.requestOnTimeout
             });
-        },
-        processQuery: function (limit) {
-            if (extension.isUndefined(limit)) {
-                limit = 0;
-            }
+        }
+    }
 
-            if (extension.isUndefined(extension.sourcePriceJson)) {
-                console.error("Error request.");
-                return;
-            }
-
-            console.log("update chart data with limit", limit);
-            if (extension.isUndefined(extension.chartData)) {
-                extension.chartData = {
-                    labels: [],
-                    datasets: [
-                        {
-                            label: "历史价格",
-                            fill: false,
-                            steppedLine: false,
-                            backgroundColor: extension.chartColors.blue,
-                            borderColor: extension.chartColors.blue,
-                            data: []
-                        }, {
-                            label: "历史均价",
-                            steppedLine: false,
-                            backgroundColor: extension.chartColors.green,
-                            borderColor: extension.chartColors.green,
-                            borderDash: [5, 5],
-                            fill: false,
-                            data: []
-                        }, {
-                            label: "虚标原价",
-                            steppedLine: false,
-                            backgroundColor: extension.chartColors.red,
-                            borderColor: extension.chartColors.red,
-                            fill: false,
-                            data: []
-                        }
-                    ]
-                };
+    class Gwdang extends DataSource {
+        queryHistoryUrl(site) {
+            let id = site.goodsId()
+            if (site instanceof Taobao) {
+            } else if (site instanceof JD) {
+                id = `${id}-3`
             } else {
-                extension.chartData.labels = [];
-                extension.chartData.datasets[0].data = [];
-                extension.chartData.datasets[1].data = [];
-                extension.chartData.datasets[2].data = [];
+                super.queryHistory(site)
             }
 
-            var data = extension.chartData;
-            var oneDay = 1000 * 60 * 60 * 24;
-            var json = extension.sourcePriceJson;
-            for (var i in json.store) {
-                var store = json.store[i];
-                var beginTimestamp = new Date();
-                if (limit >= 0) {
-                    beginTimestamp = store.all_line_begin_time;
-                } else {
-                    beginTimestamp.setHours(0, 0, 0, 0);
-                    beginTimestamp = new Date(beginTimestamp.valueOf() + limit * oneDay);
-                }
-                var currentTimestamp = store.all_line_begin_time;
-                var lastPrice = -1;
-                var sumPrice = 0;
-                var dayCount = 0;
-                // 历史实时价格
-                for (var j in store.all_line) {
-                    if (currentTimestamp >= beginTimestamp) {
-                        dayCount++;
-                        sumPrice += store.all_line[j];
-                        if (lastPrice != store.all_line[j]) {
-                            lastPrice = store.all_line[j];
-                            var price = store.all_line[j];
-                            data.labels.push(extension.timestampToDateString(currentTimestamp));
-                            data.datasets[0].data.push(price);
-                        }
+            return `https://browser.gwdang.com/extension?ac=price_trend&dp_id=${id}&union=union_gwdang&version=1518335403103&from_device=default&_=${Date.parse(new Date())}`
+        }
+
+        requestOnLoad(details) {
+            const json = JSON.parse(details.responseText);
+            console.log('Gwdang Response', json)
+
+            // 一天的毫秒数
+            const oneDay = 1000 * 60 * 60 * 24
+            for (let i in json.store) {
+                const store = json.store[i]
+                // let beginTimestamp = new Date()
+                let currentTimestamp = store.all_line_begin_time
+                let lastPrice = -1 // 上一天的价格
+                // let sumPrice = 0 // 总计价格 用于统计均价
+                // let dayCount = 0 // 总计天数
+
+                // // 设置显示的起始时间
+                // if (this.limit >= 0) {
+                //     beginTimestamp = store.all_line_begin_time
+                // } else {
+                //     beginTimestamp.setHours(0, 0, 0, 0)
+                //     beginTimestamp = new Date(beginTimestamp.valueOf() + this.limit * oneDay)
+                // }
+
+                for (let j in store.all_line) {
+                    if (lastPrice != store.all_line[j]) {
+                        lastPrice = store.all_line[j]
+                        // 保存历史价格
+                        this.price.set(currentTimestamp, store.all_line[j])
                     }
-                    currentTimestamp += oneDay;
+                    // 时间计数器+1
+                    currentTimestamp += oneDay
                 }
-                // 历史均价
-                var avgPrice = sumPrice / dayCount;
-                data.datasets[1].data.push({
-                    x: extension.timestampToDateString(beginTimestamp),
-                    y: avgPrice
-                });
-                data.datasets[1].data.push({
-                    x: data.labels[data.labels.length - 1],
-                    y: avgPrice
-                });
-                // 虚标原价
-                var officalPriceDOM = document.getElementById("page_origin_price");
-                if (!extension.isUndefined(officalPriceDOM)) {
-                    var officalPrice = /\d+/.exec(officalPriceDOM.innerText)[0];
-                    data.datasets[2].data.push({
-                        x: extension.timestampToDateString(beginTimestamp),
-                        y: officalPrice
-                    });
-                    data.datasets[2].data.push({
-                        x: data.labels[data.labels.length - 1],
-                        y: officalPrice
-                    });
-                }
-                console.log("ActiveRecord is", dayCount, "BeginTimestamp is", beginTimestamp,
-                    "EndTimestamp is", store.max_stamp, "ActiveEndTimestamp is", currentTimestamp);
             }
 
-            if (!extension.isUndefined(extension.chart)) {
-                extension.chart.update();
+            console.log('Gwdang History', this.price)
+
+            // 标记任务已完成
+            this.ready = true
+        }
+    }
+    class Taobao extends SupportSite {
+        isMatch() { return /(taobao|tmall)\.com/.test(window.location.host) }
+        siteName() { return 'taobao' }
+        goodsId() { return /(?:&|\?)id=(\d+)/.exec(window.location.href)[1] }
+        goodsName() { document.title.replace("-tmall.com天猫", "").replace("-淘宝网", "") }
+        injeryCanvas() {
+            const div = document.createElement('div')
+            div.style.width = '100%'
+            div.appendChild(this.canvas)
+
+            this.injeryButton.style = 'width: 180px;height:38px;color: #FFF;border-color: #F40;background: #F40;'
+            document.getElementById("detail").appendChild(div)
+            // document.getElementsByClassName("tb-action")[0].appendChild(this.injeryButton)
+        }
+    }
+
+    class JD extends SupportSite {
+        isMatch() { return /(jd|yiyaojd)\.(com|hk)/.test(window.location.host) }
+        siteName() { return 'jd' }
+        goodsId() { return /(\d+)\.html/.exec(window.location.href)[1] }
+        goodsName() { document.getElementsByClassName("sku-name")[0].innerText.trim() }
+        injeryCanvas() {
+            const div = document.createElement('div')
+            div.style.width = '100%'
+            div.appendChild(this.canvas)
+
+            this.injeryButton.className = 'btn-special1 btn-lg'
+            // 插入合适位置图表
+            document.getElementsByClassName("product-intro clearfix")[0].appendChild(div)
+            // 插入合适位置按钮
+            // document.getElementsByClassName("choose-btns clearfix")[0].appendChild(this.injeryButton)
+        }
+    }
+
+    class ChartHelper {
+        constructor() {
+            // 定义成员变量的方法
+            this.colors = {
+                red: 'rgb(255, 99, 132)',
+                orange: 'rgb(255, 159, 64)',
+                yellow: 'rgb(255, 205, 86)',
+                green: 'rgb(75, 192, 192)',
+                blue: 'rgb(54, 162, 235)',
+                purple: 'rgb(153, 102, 255)',
+                grey: 'rgb(201, 203, 207)'
             }
-        },
-        injectButton: function () {
-            console.log("Try to set button on UI");
-            var button = document.createElement("select");
 
-            button.appendChild(extension.createSelectOption("完整历史价格", 0));
-            button.appendChild(extension.createSelectOption("最近七天历史价格", -7));
-            button.appendChild(extension.createSelectOption("最近一月历史价格", -30));
-            button.appendChild(extension.createSelectOption("最近三月历史价格", -90));
-            button.appendChild(extension.createSelectOption("最近半年历史价格", -180));
-            button.dataset.currentValue = 0;
-
-            button.onchange = function () {
-                console.log("select onchage event");
-                var selectedValue = button.options[button.selectedIndex].value;
-                if (button.dataset.currentValue != selectedValue) {
-                    console.log("select update data");
-                    button.dataset.currentValue = selectedValue;
-                    extension.processQuery(selectedValue);
-                }
-            };
-
-            var div = document.createElement("div");
-            div.style.width = "100%";
-
-            var canvas = document.createElement("canvas");
-            canvas.id = extension.canvasId;
-            div.appendChild(canvas);
-            // canvas.style.display = "none";
-            switch (extension.currentSite()) {
-                case "jd":
-                    button.className = "btn-special1 btn-lg";
-                    document.getElementsByClassName("choose-btns clearfix")[0].appendChild(button);
-                    document.getElementsByClassName("product-intro clearfix")[0].appendChild(div);
-                    break
-                case "taobao":
-                    button.style = "width: 180px;height:38px;color: #FFF;border-color: #F40;background: #F40;"
-                    document.getElementById("detail").appendChild(div);
-                    document.getElementsByClassName("tb-action")[0].appendChild(button);
-                    break;
-            }
-            extension.showHistroyPannel();
-        },
-        showHistroyPannel: function () {
-            if (extension.isUndefined(extension.chartData)) {
-                console.log("There is no chart data to show, ignore");
-                return;
-            }
-
-            var canvas = document.getElementById(extension.canvasId);
-
-            if (extension.isUndefined(canvas)) {
-                console.log("Unknown Error");
-            } else {
-                if (extension.isUndefined(extension.chart)) {
-                    var context = document.getElementById(extension.canvasId).getContext("2d");
-                    extension.chart = new Chart(context, {
-                        responsive: true,
-                        type: "line",
-                        data: extension.chartData,
-                        options: {
-                            // animation: {},
-                            title: {
-                                display: true,
-                                text: extension.currentGoodsName()
-                            },
-                            hover: {
-                                mode: 'nearest',
-                                intersect: true
-                            },
-                            scales: {
-                                xAxes: [{
-                                    display: true,
-                                    scaleLabel: {
-                                        display: true,
-                                        labelString: "时间"
-                                    }
-                                }],
-                                yAxes: [{
-                                    display: true,
-                                    scaleLabel: {
-                                        display: true,
-                                        labelString: "价格"
-                                    }
-                                }]
-                            }
-                        }
-                    });
-                }
-                canvas.style.display = "";
-            }
-        },
-        hideHistroyPannel: function () {
-            var canvas = document.getElementById(extension.canvasId);
-            if (!extension.isUndefined(canvas)) {
-                canvas.style.display = "none";
+            /**
+             * 数据表基本结构
+             */
+            this.data = {
+                labels: [],
+                datasets: [
+                    {
+                        label: "历史价格",
+                        fill: false,
+                        steppedLine: false,
+                        backgroundColor: this.colors.blue,
+                        borderColor: this.colors.blue,
+                        data: []
+                    }, {
+                        label: "历史均价",
+                        steppedLine: false,
+                        backgroundColor: this.colors.green,
+                        borderColor: this.colors.green,
+                        borderDash: [5, 5],
+                        fill: false,
+                        data: []
+                    }, {
+                        label: "虚标原价",
+                        steppedLine: false,
+                        backgroundColor: this.colors.red,
+                        borderColor: this.colors.red,
+                        fill: false,
+                        data: []
+                    }
+                ]
             }
         }
-    };
 
-    (function () { extension.doQuery(); })();
-})();
+        /**
+         * 设置历史价格
+         * historyName:
+         *   String数组
+         *   代表每个数据源的名称
+         *
+         * historyPrice:
+         *   key-value 数组 暂时降维度
+         *   每个元素代表一个数据源
+         *   key 为时间戳
+         *   value 为价格
+         */
+        set historyPrice(/*historyName,*/historyPrice) {
+            // 清空历史数据
+            this.data.datasets[0].data = []
+            this.data.labels = []
+
+            let sum = 0
+            let count = 0
+
+            historyPrice.forEach((value, key, map) => {
+                this.data.labels.push(Utils.timestampToDateString(key))
+                this.data.datasets[0].data.push(value)
+            });
+
+            // 同步历史均价
+        }
+
+        // /**
+        //  * 设置历史均价
+        //  */
+        // set averagePrice(value) {
+        //     this.data.datasets[1].data = {}
+        //     this.data.datasets[1].push({
+        //         x: this.data.labels[0],
+        //         y: value
+        //     })
+        //     this.data.datasets[1].push({
+        //         x: this.data.labels[this.data.labels.length - 1],
+        //         y: value
+        //     })
+        // }
+
+        /**
+         * 设置虚标原价
+         */
+        set originPrice(value) {
+            this.data.datasets[2].data = []
+            this.data.datasets[2].push({
+                x: this.data.labels[0],
+                y: value
+            })
+            this.data.datasets[2].push({
+                x: this.data.labels[this.data.labels.length - 1],
+                y: value
+            })
+        }
+        /**
+         * 绘制图表
+         * @param element 准备绘制图表的DOM对象
+         * @param title 图表标题
+         */
+        draw(element, title) {
+            const context = element.getContext('2d')
+            const chart = new Chart(context, {
+                responsive: true,
+                type: "line",
+                data: this.data,
+                options: {
+                    title: {
+                        display: true,
+                        text: title
+                    },
+                    hover: {
+                        mode: 'nearest',
+                        intersect: true
+                    },
+                    scales: {
+                        xAxes: [{
+                            display: true,
+                            scaleLabel: {
+                                display: true,
+                                labelString: "时间"
+                            }
+                        }],
+                        yAxes: [{
+                            display: true,
+                            scaleLabel: {
+                                display: true,
+                                labelString: "价格"
+                            }
+                        }]
+                    }
+                }
+            })
+
+        }
+    }
+
+    const supports = [new JD(), new Taobao()]
+
+    supports.filter(site => {
+        return site.isMatch()
+    }).find(site => {
+        console.log('Match site', site)
+        const ds = new Gwdang(0)
+        const chart = new ChartHelper()
+
+        ds.request(site)
+
+        ds.waitForReady(-1).then(() => {
+            console.log('ok')
+            site.injeryCanvas()
+            chart.historyPrice = ds.price
+            chart.draw(site.canvas, site.goodsName())
+            console.log('well done')
+        })
+    })
+})()
