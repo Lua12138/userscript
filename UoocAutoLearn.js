@@ -254,23 +254,29 @@
     // 从服务器获取答案
     UoocAutoLearn.getExamAnswer = function () {
         console.log('getExamAnswer', this.tid);
-        $.ajax({
-            type: "GET",
-            url: UoocAutoLearn.apiUrl,
-            dataType: "JSONP",
-            data: {
-                cmd: 'get_exam_answer',
-                tid: this.tid
-            },
-            success: function (response) {
-                console.log(response);
-                if (response.code == 1) {
-                    window._response = response;
-                    UoocAutoLearn.answerData = response.data;
-                    UoocAutoLearn.loopSetAnchor();
+        var tids = this.tid.split(",");
+        for (var id in tids){
+            var t = tids[id];
+            $.ajax({
+                type: "GET",
+                url: UoocAutoLearn.apiUrl,
+                dataType: "JSONP",
+                data: {
+                    cmd: 'get_exam_answer',
+                    tid: t
+                },
+                async: true,
+                success: function (response) {
+                    console.log(response);
+                    if (response.code == 1) {
+                        window._response = response;
+                        console.log("填写内容:",t);
+                        UoocAutoLearn.answerData = response.data;
+                        UoocAutoLearn.loopSetAnchor();
+                    }
                 }
-            }
-        });
+            });
+        }
     }
 
     // 依次遍历题目修改答案
@@ -290,7 +296,7 @@
                 answer_ti = $("<div />").html(item.question).text();
 
             // 题目相同再遍历答案
-            if (anchor_ti == answer_ti) {
+            if (anchor_ti.replace(/( |（|）|_|\(|\)|。|，| |\?|？)/g,"")  == answer_ti.replace(/( |（|）|_|\(|\)|。|，| |\?|？)/g,"")) {
                 // 设置题目绿色背景
                 // anchor.find('.ti-q-c').css({ backgroundColor: '#99FF99' });
 
@@ -304,7 +310,7 @@
                         an_v = $('<div />').html(item.options[ti_k]).text();
 
                     // 对比答案是否一致 一致则勾选
-                    if (ti_v == an_v) {
+                    if (ti_v.replace(/( |（|）|_|\(|\)|。|，| |\?|？)/g,"") == an_v.replace(/( |（|）|_|\(|\)|。|，| |\?|？)/g,"")) {
                         // 设置题目绿色
                         // $(a_item).find('.ti-a-c').css({ backgroundColor: '#99FF99' })
 
@@ -339,7 +345,13 @@
 
     // 尝试修改页面题目
     UoocAutoLearn.setExamAnswer = function () {
-        this.tid = location.pathname.match(/^\/exam\/([0-9]+)/)[1];
+        try{
+            this.tid = location.pathname.match(/^\/exam\/([0-9]+)/)[1];
+        }catch(e){
+            console.log("获取tid失败",e);
+            this.tid = window.prompt("默认获取TID失败，请手动填写");
+        }
+        // this.tid = 1718411091;
         console.log('setExamAnswer', this.tid);
 
         // 向服务器查询是否有答案
@@ -427,7 +439,8 @@
             return;
         }
         // /exam/955957832 做题页面
-        else if (/^\/exam\/[0-9]+/.test(location.pathname)) {
+        else if (/^\/exam\/[0-9]+/.test(location.pathname) ||
+                 /^\/home\/exam\/[0-9]+/.test(location.pathname)) {
             console.log("exam");
 
             // 判断题目是否出来
