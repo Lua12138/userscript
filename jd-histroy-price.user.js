@@ -10,7 +10,7 @@
 // @updateURL   https://github.com/gam2046/userscript/raw/master/jd-histroy-price.user.js
 // @supportURL  https://github.com/gam2046/userscript/issues/new
 // @run-at      document-idle
-// @version     8
+// @version     9
 // @grant       GM_xmlhttpRequest
 // @copyright   2018+, forDream <gan2046#gmail.com>
 // @author      forDream
@@ -270,7 +270,7 @@
         isMatch() { return /(taobao|tmall)\.com/.test(window.location.host) }
         siteName() { return 'taobao' }
         goodsId() { return /(?:&|\?)id=(\d+)/.exec(window.location.href)[1] }
-        goodsName() { document.title.replace("-tmall.com天猫", "").replace("-淘宝网", "") }
+        goodsName() { return document.title.replace("-tmall.com天猫", "").replace("-淘宝网", "") }
         injeryCanvas() {
             const div = document.createElement('div')
             div.style.width = '100%'
@@ -286,7 +286,7 @@
         isMatch() { return /(jd|yiyaojd)\.(com|hk)/.test(window.location.host) }
         siteName() { return 'jd' }
         goodsId() { return /(\d+)\.html/.exec(window.location.href)[1] }
-        goodsName() { document.getElementsByClassName("sku-name")[0].innerText.trim() }
+        goodsName() { return document.getElementsByClassName("sku-name")[0].innerText.trim() }
         injeryCanvas() {
             const div = document.createElement('div')
             div.style.width = '100%'
@@ -377,17 +377,45 @@
         // /**
         //  * 设置历史均价
         //  */
-        // set averagePrice(value) {
-        //     this.data.datasets[1].data = {}
-        //     this.data.datasets[1].push({
-        //         x: this.data.labels[0],
-        //         y: value
-        //     })
-        //     this.data.datasets[1].push({
-        //         x: this.data.labels[this.data.labels.length - 1],
-        //         y: value
-        //     })
-        // }
+        set averagePrice(datasource) {
+            let day = 0
+            let price = 0
+            let lastPrice = -1
+            let lastStamp = -1
+            const ONE_DAY = 86400000
+            const firstMap = {}
+            const lastMap = {}
+            datasource.forEach((value, key, map) => {
+                if (lastPrice < 0) {
+                    lastStamp = key
+                    lastPrice = value
+                    firstMap.timestamp = key
+                    firstMap.price = value
+                } else {
+                    price += (lastPrice * ((key - lastStamp) / ONE_DAY))
+                    lastPrice = value
+                    lastStamp = key
+                    lastMap.timestamp = key
+                    lastMap.price = value
+                }
+            })
+            day = (lastMap.timestamp - firstMap.timestamp) / ONE_DAY
+            price += (lastPrice * (new Date() * 1 - lastStamp) / ONE_DAY)
+
+            const value = (price / day).toFixed(3)
+
+            console.log('Day', day, 'price', price, 'agv', value)
+
+            this.data.datasets[1].data = []
+            this.data.datasets[1].data.push({
+                x: this.data.labels[0],
+                y: value
+            })
+            this.data.datasets[1].data.push({
+                x: this.data.labels[this.data.labels.length - 1],
+                y: value
+            })
+        }
 
         /**
          * 设置虚标原价
@@ -460,6 +488,7 @@
             console.log('ok')
             site.injeryCanvas()
             chart.historyPrice = ds.price
+            chart.averagePrice = ds.price
             chart.draw(site.canvas, site.goodsName())
             console.log('well done')
         })
