@@ -12,7 +12,7 @@
 // @connect     pansy.pw
 // @connect     gwdang.com
 // @run-at      document-idle
-// @version     11
+// @version     12
 // @grant       GM_xmlhttpRequest
 // @grant       GM_setValue
 // @grant       GM_getValue
@@ -314,8 +314,8 @@
         }
         processRemote(json, link, sku) {
             if (json.code == 200 &&
-                json.data.code == 200) {
-                link.href = json.data.data.longCode
+                json.msg.responseCode == 200) {
+                link.href = json.msg.longLink
                 return true
             }
 
@@ -339,9 +339,9 @@
                     if (parseInt(sku) < 100000) {
                         continue
                     }
-                    const key = `JD-Item-${sku}`
+
+                    const key = `JD-Item-v2-${sku}`
                     let remote = GM_getValue(key, null)
-                    link.backgroundColor = '#FF0000'
 
                     if (remote != null) {
                         console.log('find sku with cache', link.href)
@@ -352,14 +352,14 @@
                     }
 
                     GM_xmlhttpRequest({
-                        url: `https://jd.pansy.pw?jd_sku=${sku}`,
-                        method: 'POST',
+                        url: `https://spring.pansy.pw/api/v2/promotion/jd/${sku}.js`,
+                        method: 'GET',
                         timeout: 10000,
                         headers: {
                             'Content-Type': 'application/json',
+                            'Accept': 'application/json',
                             'Cache-Control': 'public'
                         },
-                        data: `{"data":{"isPinGou":0,"materialId":${sku},"materialType":1,"planId":1202889080,"promotionType":15,"receiveType":"cps","wareUrl":"http://item.jd.com/${sku}.html","isSmartGraphics":0,"requestId":"s_7fa71a64a8794358bc1f9824a8371a80"}}`,
                         onload: (details) => {
                             try {
                                 const json = JSON.parse(details.responseText)
@@ -369,8 +369,8 @@
                                 console.log('request error', e)
                             }
                         },
-                        onerror: console.log(`Something Error ${sku}`),
-                        onabort: console.log(`Something Abort  ${sku}`),
+                        onerror: () => { console.log(`Something Error ${sku}`) },
+                        onabort: () => { console.log(`Something Abort  ${sku}`) },
                         ontimeout: console.log(`Something Timeout  ${sku}`)
                     });
                 }
