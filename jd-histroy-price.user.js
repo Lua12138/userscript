@@ -4,7 +4,7 @@
 // @namespace   https://github.com/gam2046/userscript
 // @description Shown histroy price of JD
 // @description:zh-CN [无广告] 一目了然显示京东/天猫商城，淘宝集市历史价格，没有其他额外功能。Chrome 64.+中测试通过，其他环境不保证可用。
-// @include     /http(?:s|)://item\.(?:jd|yiyaojd)\.(?:[^./]+)/\d+\.html/
+// @include     /http(?:s|)://(?:item\.(?:jd|yiyaojd)\.(?:[^./]+)/\d+\.html|.+)/
 // @include     /http(?:s|)://(?:detail|item)\.(?:taobao|tmall)\.(?:[^./]+)/item.htm/
 // @require     https://cdnjs.cloudflare.com/ajax/libs/Chart.js/2.7.1/Chart.bundle.min.js
 // @updateURL   https://github.com/gam2046/userscript/raw/master/jd-histroy-price.user.js
@@ -12,8 +12,10 @@
 // @connect     pansy.pw
 // @connect     gwdang.com
 // @run-at      document-idle
-// @version     10
+// @version     11
 // @grant       GM_xmlhttpRequest
+// @grant       GM_setValue
+// @grant       GM_getValue
 // @copyright   2018+, forDream <gan2046#gmail.com>
 // @author      forDream
 // ==/UserScript==
@@ -100,6 +102,18 @@
          */
         isMatch() { throw 'UnImplementation' }
 
+        toDoSomething() { console.log('Threer is nothing to do from parent') }
+        /**
+         * 替代 isMatch 方法
+         * 需要一些额外的插装操作
+         */
+        isWork() {
+            if (this.isMatch()) {
+                this.toDoSomething()
+                return true
+            }
+            return false
+        }
         /**
          * 子类应该复写
          * 
@@ -285,10 +299,83 @@
     }
 
     class JD extends SupportSite {
-        isMatch() { return /(jd|yiyaojd)\.(com|hk)/.test(window.location.host) }
+        itemRegexp() { return /item\.(?:jd|yiyaojd)\.(?:[^./]+)\/(\d+)\.html/ }
+        isMatch() { return this.itemRegexp().test(window.location.href) }
         siteName() { return 'jd' }
         goodsId() { return /(\d+)\.html/.exec(window.location.href)[1] }
         goodsName() { return document.getElementsByClassName("sku-name")[0].innerText.trim() }
+        isWork() {
+            if (/(jd|yiyaojd)\.(com|hk)/.test(window.location.host)) {
+                window.setTimeout(() => { this.toDoSomething() }, 3000)
+                this.amIJump()
+                return this.isMatch()
+            }
+            return false
+        }
+        processRemote(json, link, sku) {
+            if (json.code == 200 &&
+                json.data.code == 200) {
+                link.href = json.data.data.longCode
+                return true
+            }
+
+            return false
+        }
+        amIJump() {
+            const buy = document.getElementsByClassName('gobuy')
+            if (buy.length == 1) {
+                window.location.href = buy[0].getElementsByTagName('a')[0].href
+                return
+            }
+        }
+        toDoSomething() {
+            const regexp = /item\.jd\.(?:[^./]+)\/(\d+)\.html/
+            const links = document.getElementsByTagName('a')
+            for (let n in links) {
+                const link = links[n]
+                const result = regexp.exec(link.href)
+                if (result != null) {
+                    const sku = result[1]
+                    if (parseInt(sku) < 100000) {
+                        continue
+                    }
+                    const key = `JD-Item-${sku}`
+                    let remote = GM_getValue(key, null)
+                    link.backgroundColor = '#FF0000'
+
+                    if (remote != null) {
+                        console.log('find sku with cache', link.href)
+
+                        if (this.processRemote(JSON.parse(remote), link, sku)) {
+                            continue
+                        }
+                    }
+
+                    GM_xmlhttpRequest({
+                        url: `https://jd.pansy.pw?jd_sku=${sku}`,
+                        method: 'POST',
+                        timeout: 10000,
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Cache-Control': 'public'
+                        },
+                        data: `{"data":{"isPinGou":0,"materialId":${sku},"materialType":1,"planId":1202889080,"promotionType":15,"receiveType":"cps","wareUrl":"http://item.jd.com/${sku}.html","isSmartGraphics":0,"requestId":"s_7fa71a64a8794358bc1f9824a8371a80"}}`,
+                        onload: (details) => {
+                            try {
+                                const json = JSON.parse(details.responseText)
+                                GM_setValue(key, details.responseText)
+                                this.processRemote(json, link, sku)
+                            } catch (e) {
+                                console.log('request error', e)
+                            }
+                        },
+                        onerror: console.log(`Something Error ${sku}`),
+                        onabort: console.log(`Something Abort  ${sku}`),
+                        ontimeout: console.log(`Something Timeout  ${sku}`)
+                    });
+                }
+            }
+        }
         injeryCanvas() {
             const div = document.createElement('div')
             div.style.width = '100%'
@@ -478,7 +565,7 @@
     const supports = [new JD(), new Taobao()]
 
     supports.filter(site => {
-        return site.isMatch()
+        return site.isWork()
     }).find(site => {
         console.log('Match site', site)
         const ds = new Gwdang(0)
