@@ -12,7 +12,7 @@
 // @connect     pansy.pw
 // @connect     gwdang.com
 // @run-at      document-idle
-// @version     16
+// @version     17
 // @grant       GM_xmlhttpRequest
 // @grant       GM_setValue
 // @grant       GM_getValue
@@ -313,7 +313,7 @@
             return false
         }
         processRemote(json, link, sku, click) {
-            if (link.onclick != null || link.href.indexOf('#') != -1) {
+            if (link.href.indexOf('#') != -1) {
                 return true
             }
             if (json.code == 200 &&
