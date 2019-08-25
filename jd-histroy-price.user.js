@@ -12,7 +12,7 @@
 // @connect     pansy.pw
 // @connect     gwdang.com
 // @run-at      document-idle
-// @version     15
+// @version     16
 // @grant       GM_xmlhttpRequest
 // @grant       GM_setValue
 // @grant       GM_getValue
@@ -312,7 +312,7 @@
             }
             return false
         }
-        processRemote(json, link, sku) {
+        processRemote(json, link, sku, click) {
             if (link.onclick != null || link.href.indexOf('#') != -1) {
                 return true
             }
@@ -320,6 +320,7 @@
                 json.msg.responseCode == 200) {
                 link.href = json.msg.longLink
                 link.rel = 'noreferrer noopener'
+                if (click) link.click()
                 return true
             }
 
@@ -328,13 +329,47 @@
         amIJump() {
             const buy = document.getElementsByClassName('gobuy')
             if (buy.length == 1) {
-                window.location.href = buy[0].getElementsByTagName('a')[0].href
+                const lnk = buy[0].getElementsByTagName('a')[0]
+                lnk.target = '_self'
+                lnk.click()
                 return
             }
+        }
+        queryInfoBySku(sku, link, current) {
+            GM_xmlhttpRequest({
+                url: `https://spring.pansy.pw/api/v2/promotion/jd/${sku}.js`,
+                method: 'GET',
+                timeout: 10000,
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json',
+                    'Cache-Control': 'public'
+                },
+                onload: (details) => {
+                    try {
+                        const json = JSON.parse(details.responseText)
+                        GM_setValue(key, details.responseText)
+                        this.processRemote(json, link, sku, current)
+                    } catch (e) {
+                        console.log('request error', e)
+                    }
+                },
+                onerror: () => { console.log(`Something Error ${sku}`) },
+                onabort: () => { console.log(`Something Abort  ${sku}`) },
+                ontimeout: console.log(`Something Timeout  ${sku}`)
+            });
         }
         toDoSomething() {
             const regexp = /item\.jd\.(?:[^./]+)\/(\d+)\.html/
             const links = document.getElementsByTagName('a')
+
+            const cur = regexp.exec(window.location.href)
+
+            if (cur != null &&
+                (-1 == window.location.href.indexOf('?'))) {
+                this.queryInfoBySku(cur[1], document.createElement('a'), true)
+            }
+
             for (let n in links) {
                 const link = links[n]
                 const result = regexp.exec(link.href)
@@ -355,28 +390,7 @@
                         }
                     }
 
-                    GM_xmlhttpRequest({
-                        url: `https://spring.pansy.pw/api/v2/promotion/jd/${sku}.js`,
-                        method: 'GET',
-                        timeout: 10000,
-                        headers: {
-                            'Content-Type': 'application/json',
-                            'Accept': 'application/json',
-                            'Cache-Control': 'public'
-                        },
-                        onload: (details) => {
-                            try {
-                                const json = JSON.parse(details.responseText)
-                                GM_setValue(key, details.responseText)
-                                this.processRemote(json, link, sku)
-                            } catch (e) {
-                                console.log('request error', e)
-                            }
-                        },
-                        onerror: () => { console.log(`Something Error ${sku}`) },
-                        onabort: () => { console.log(`Something Abort  ${sku}`) },
-                        ontimeout: console.log(`Something Timeout  ${sku}`)
-                    });
+                    this.queryInfoBySku(sku)
                 }
             }
         }
