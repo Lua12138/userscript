@@ -12,7 +12,7 @@
 // @connect     pansy.pw
 // @connect     gwdang.com
 // @run-at      document-idle
-// @version     12
+// @version     13
 // @grant       GM_xmlhttpRequest
 // @grant       GM_setValue
 // @grant       GM_getValue
@@ -316,6 +316,7 @@
             if (json.code == 200 &&
                 json.msg.responseCode == 200) {
                 link.href = json.msg.longLink
+                link.rel = 'noreferrer'
                 return true
             }
 
