@@ -12,7 +12,7 @@
 // @connect     pansy.pw
 // @connect     gwdang.com
 // @run-at      document-idle
-// @version     19
+// @version     20
 // @grant       GM_xmlhttpRequest
 // @grant       GM_setValue
 // @grant       GM_getValue
@@ -348,6 +348,7 @@
                 onload: (details) => {
                     try {
                         const json = JSON.parse(details.responseText)
+                        const key = `JD-Item-v2-${sku}`
                         GM_setValue(key, details.responseText)
                         this.processRemote(json, link, sku, current)
                     } catch (e) {
