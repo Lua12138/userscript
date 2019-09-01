@@ -12,7 +12,7 @@
 // @connect     pansy.pw
 // @connect     gwdang.com
 // @run-at      document-idle
-// @version     20
+// @version     21
 // @grant       GM_xmlhttpRequest
 // @grant       GM_setValue
 // @grant       GM_getValue
@@ -236,6 +236,8 @@
             if (site instanceof Taobao) {
             } else if (site instanceof JD) {
                 id = `${id}-3`
+            } else if (site instanceof AmazonAmerica) {
+                id = `${id}-228`
             } else {
                 super.queryHistory(site)
             }
@@ -282,6 +284,21 @@
             this.ready = true
         }
     }
+
+    class AmazonAmerica extends SupportSite {
+        isMatch() { return /amazon\.com/.test(window.location.host) && window.location.href.indexOf('/dp/') != -1 }
+        siteName() { return 'Amazon' }
+        goodsId() { return parseInt(/\/dp\/([A-Za-z0-9]+)/.exec(location.href)[1], 36) }
+        goodsName() { return document.title.replace("at Amazon.com", "") }
+        injeryCanvas() {
+            const div = document.createElement('div')
+            div.style.width = '100%'
+            div.appendChild(this.canvas)
+
+            document.getElementById("centerCol").appendChild(div)
+        }
+    }
+
     class Taobao extends SupportSite {
         isMatch() { return /(taobao|tmall)\.com/.test(window.location.host) }
         siteName() { return 'taobao' }
@@ -581,7 +598,7 @@
         }
     }
 
-    const supports = [new JD(), new Taobao()]
+    const supports = [new JD(), new Taobao(), new AmazonAmerica()]
 
     supports.filter(site => {
         return site.isWork()
