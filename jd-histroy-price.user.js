@@ -1,9 +1,9 @@
 // ==UserScript==
-// @name        JD_Tmall_Taobao_Histroy_Price
-// @name:zh-CN  京东/天猫/淘宝历史价格
+// @name        JD_Tmall_Taobao_Amazon_Histroy_Price
+// @name:zh-CN  京东/天猫/淘宝/美亚历史价格
 // @namespace   https://github.com/gam2046/userscript
-// @description Shown histroy price of JD
-// @description:zh-CN [无广告] 一目了然显示京东/天猫商城，淘宝集市历史价格，没有其他额外功能。Chrome 64.+中测试通过，其他环境不保证可用。
+// @description Shown histroy price of jd.com / taobao.com / taobao.com / amazon.com & No ADs
+// @description:zh-CN [无广告] 一目了然显示京东/天猫商城/淘宝集市/美国亚马逊历史价格。Chrome 64.+中测试通过，其他环境不保证可用。
 // @include     /http(?:s|)://(?:item\.(?:jd|yiyaojd)\.(?:[^./]+)/\d+\.html|.+)/
 // @include     /http(?:s|)://(?:detail|item)\.(?:taobao|tmall)\.(?:[^./]+)/item.htm/
 // @require     https://cdnjs.cloudflare.com/ajax/libs/Chart.js/2.7.1/Chart.bundle.min.js
@@ -12,7 +12,7 @@
 // @connect     pansy.pw
 // @connect     gwdang.com
 // @run-at      document-idle
-// @version     21
+// @version     22
 // @grant       GM_xmlhttpRequest
 // @grant       GM_setValue
 // @grant       GM_getValue
