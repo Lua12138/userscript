@@ -1,8 +1,9 @@
 // ==UserScript==
-// @name         优课在线辅助脚本
+// @name         优课在线辅助脚本/forDream版本
 // @namespace    http://www.qs5.org/?UoocAutoLearn
-// @version      1.2.181225a
+// @version      1.3
 // @description  实现自动挂机看视频，作业自动做题/共享答案功能/修改自https://greasyfork.org/zh-CN/scripts/40463-%E4%BC%98%E8%AF%BE%E5%9C%A8%E7%BA%BF%E8%BE%85%E5%8A%A9%E8%84%9A%E6%9C%AC/code
+// @updateURL    https://raw.githubusercontent.com/gam2046/userscript/master/UoocAutoLearn.js
 // @author       ImDong
 // @match        *://*.uooconline.com/*
 // @match        *://www1.baidu.com/s?uooc=1&*
@@ -155,7 +156,7 @@
 
     // 刷新时间
     UoocAutoLearn.markVideoLearn = function () {
-        this.video_pos = this.video_pos + 10;
+        this.video_pos = this.video_pos + 10 + Math.round(Math.random() * 10);
         if (this.video_pos > this.video_length && this.video_length > 0) this.video_pos = this.video_length;
 
         $.ajax({
@@ -173,13 +174,18 @@
                 video_length: this.video_length == 0 ? 100 : this.video_length,
                 video_pos: this.video_pos
             },
-            success: function (response) {
+            success: (response) => {
                 console.log('已看至', UoocAutoLearn.video_pos, '秒, 总', UoocAutoLearn.video_length == 0 ? '未知' : UoocAutoLearn.video_length, '秒');
-                if (response.data.finished == 1 || (UoocAutoLearn.video_length > 0 && UoocAutoLearn.video_pos >= UoocAutoLearn.video_length)) {
+                if (response.code == 600) {
+                    // 超速
+                    this.video_pos -= 10
+                } else if (response.data.finished == 1 || (UoocAutoLearn.video_length > 0 && UoocAutoLearn.video_pos >= UoocAutoLearn.video_length)) {
                     console.log('本课已经结束');
                     // 获取下一节课
                     UoocAutoLearn.getCatalogList();
                     return;
+                } else {
+                    console.log(response)
                 }
                 setTimeout(() => {
                     UoocAutoLearn.markVideoLearn();
@@ -255,7 +261,7 @@
     UoocAutoLearn.getExamAnswer = function () {
         console.log('getExamAnswer', this.tid);
         var tids = this.tid.split(",");
-        for (var id in tids){
+        for (var id in tids) {
             var t = tids[id];
             $.ajax({
                 type: "GET",
@@ -270,7 +276,7 @@
                     console.log(response);
                     if (response.code == 1) {
                         window._response = response;
-                        console.log("填写内容:",t);
+                        console.log("填写内容:", t);
                         UoocAutoLearn.answerData = response.data;
                         UoocAutoLearn.loopSetAnchor();
                     }
@@ -296,7 +302,7 @@
                 answer_ti = $("<div />").html(item.question).text();
 
             // 题目相同再遍历答案
-            if (anchor_ti.replace(/( |（|）|_|\(|\)|。|，| |\?|？)/g,"")  == answer_ti.replace(/( |（|）|_|\(|\)|。|，| |\?|？)/g,"")) {
+            if (anchor_ti.replace(/( |（|）|_|\(|\)|。|，| |\?|？)/g, "") == answer_ti.replace(/( |（|）|_|\(|\)|。|，| |\?|？)/g, "")) {
                 // 设置题目绿色背景
                 // anchor.find('.ti-q-c').css({ backgroundColor: '#99FF99' });
 
@@ -310,7 +316,7 @@
                         an_v = $('<div />').html(item.options[ti_k]).text();
 
                     // 对比答案是否一致 一致则勾选
-                    if (ti_v.replace(/( |（|）|_|\(|\)|。|，| |\?|？)/g,"") == an_v.replace(/( |（|）|_|\(|\)|。|，| |\?|？)/g,"")) {
+                    if (ti_v.replace(/( |（|）|_|\(|\)|。|，| |\?|？)/g, "") == an_v.replace(/( |（|）|_|\(|\)|。|，| |\?|？)/g, "")) {
                         // 设置题目绿色
                         // $(a_item).find('.ti-a-c').css({ backgroundColor: '#99FF99' })
 
@@ -345,10 +351,10 @@
 
     // 尝试修改页面题目
     UoocAutoLearn.setExamAnswer = function () {
-        try{
+        try {
             this.tid = location.pathname.match(/^\/exam\/([0-9]+)/)[1];
-        }catch(e){
-            console.log("获取tid失败",e);
+        } catch (e) {
+            console.log("获取tid失败", e);
             this.tid = window.prompt("默认获取TID失败，请手动填写");
         }
         // this.tid = 1718411091;
@@ -440,7 +446,7 @@
         }
         // /exam/955957832 做题页面
         else if (/^\/exam\/[0-9]+/.test(location.pathname) ||
-                 /^\/home\/exam\/[0-9]+/.test(location.pathname)) {
+            /^\/home\/exam\/[0-9]+/.test(location.pathname)) {
             console.log("exam");
 
             // 判断题目是否出来
@@ -501,6 +507,7 @@
     }
 
     // 页面加载完成执行绑定
+
     $(function () {
         // 绑定按钮事件
         $(document).on('click', '.uooc-auto-learn-btn', function () {
