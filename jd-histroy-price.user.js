@@ -6,6 +6,7 @@
 // @description:zh-CN [无广告] 一目了然显示京东/天猫商城/淘宝集市/美国亚马逊历史价格。Chrome 64.+中测试通过，其他环境不保证可用。
 // @include     /http(?:s|)://(?:item\.(?:jd|yiyaojd)\.(?:[^./]+)/\d+\.html|.+)/
 // @include     /http(?:s|)://(?:detail|item)\.(?:taobao|tmall)\.(?:[^./]+)/item.htm/
+// @include     /amazon\.com/
 // @updateURL   https://github.com/gam2046/userscript/raw/master/jd-histroy-price.user.js
 // @require     https://cdnjs.cloudflare.com/ajax/libs/Chart.js/2.7.1/Chart.bundle.min.js
 // @require     https://cdn.jsdelivr.net/npm/sweetalert2@8
@@ -15,7 +16,7 @@
 // @connect     happy12138.top
 // @connect     huihui.cn
 // @run-at      document-start
-// @version     23
+// @version     24
 // @grant       GM_xmlhttpRequest
 // @grant       GM_setValue
 // @grant       GM_getValue
