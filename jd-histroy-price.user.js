@@ -16,7 +16,7 @@
 // @connect     happy12138.top
 // @connect     huihui.cn
 // @run-at      document-start
-// @version     25
+// @version     26
 // @grant       GM_xmlhttpRequest
 // @grant       GM_setValue
 // @grant       GM_getValue
@@ -357,6 +357,7 @@
         // document-idle
         console.log('page idle')
         document.head.appendChild(hostname)
+        dispatcher.onEventInvoke({ 'name': 'idle', 'dispatcher': dispatcher })
         if (self != top) {
             return
         }
@@ -380,7 +381,6 @@
                 }
             }
         }
-        dispatcher.onEventInvoke({ 'name': 'idle', 'dispatcher': dispatcher })
     })
 
     console.log('init')
