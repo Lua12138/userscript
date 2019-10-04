@@ -1,9 +1,9 @@
 // ==UserScript==
-// @name        JD_Tmall_Taobao_Amazon_Histroy_Price
-// @name:zh-CN  京东/天猫/淘宝/美亚历史价格
+// @name        JD_Tmall_Taobao_Amazon_Histroy_Price_Coupon
+// @name:zh-CN  京东/天猫/淘宝/历史价格/优惠券
 // @namespace   https://github.com/gam2046/userscript
-// @description Shown histroy price of jd.com / taobao.com / taobao.com / amazon.com & No ADs
-// @description:zh-CN [无广告] 一目了然显示京东/天猫商城/淘宝集市/美国亚马逊历史价格。Chrome 64.+中测试通过，其他环境不保证可用。
+// @description Shown histroy price of jd.com / taobao.com / taobao.com & No ADs & Coupon
+// @description:zh-CN [无广告] [慎重:会转链]] 显示京东/天猫商城/淘宝集市 历史价格，支持淘宝、天猫隐藏优惠券领取。
 // @include     /http(?:s|)://(?:item\.(?:jd|yiyaojd)\.(?:[^./]+)/\d+\.html|.+)/
 // @include     /http(?:s|)://(?:detail|item)\.(?:taobao|tmall)\.(?:[^./]+)/item.htm/
 // @include     /amazon\.com/
@@ -16,7 +16,7 @@
 // @connect     happy12138.top
 // @connect     huihui.cn
 // @run-at      document-start
-// @version     24
+// @version     25
 // @grant       GM_xmlhttpRequest
 // @grant       GM_setValue
 // @grant       GM_getValue
@@ -47,7 +47,35 @@
         <br/>3、对于京东商城、淘宝集市、天猫商城的商品信息展示，脚本会自动接入京东联盟与淘宝联盟。这意味着，您在京东商城、淘宝集市、天猫商城购物时，我可能会获得您购物金额一定比例的佣金（具体比例由京东、淘宝天猫单方面决定），这部分佣金不需要您支付，您也不会因此多付出金钱。但是因此可能会导致您进入商品详情页时，浏览器会有一次跳转，希望您能够理解。
         <br/>4、由于服务器相关存在开销（自建价格数据源），且脚本本身没有任何广告，因此上述第三条可能产生的收入将用于支付此费用；
         <br/>5、如果您无法接受上述第三条的内容，您不需要担心，现在什么事情都还没有发生，您现在可以<b>删除此脚本</b>；
-        <br/>6、如果您继续使用本脚本，则视为您接受上述所有内容；</p>`]
+        <br/>6、如果您继续使用本脚本，则视为您接受上述所有内容；
+        <br/>7、遇到任何问题，请优先联系QQ反馈：1151394385
+        </p>`]
+    }, {
+        name: 'taobao-update-1',
+        match: /(taobao|tmall)\.(com|cn)/,
+        type: 'success',
+        title: ['Taobao\'s Update', '淘宝新功能上线'],
+        message: [`<p align="left">
+        <br/> Changelog
+        <br/>
+        <br/>1. Support Taobao and Tmall to receive exclusive coupons from sellers 
+        <br/>
+        <br/>2. Support price reduction notice
+        </p>`, `<p align="left">
+        <br/>很高兴的与您分享本次关于淘宝的功能更新。
+        <br/>
+        <br/>本次更新主要新增了两项功能：
+        <br/>
+        <br/>1. 领取专属优惠券。在商品展示页主图的下方会存在一个链接可以领取该商品的专属优惠券，供您自主选择是否领取，帮您更省钱；
+        <br/> 
+        <br/>2. 降价通知。您不需要时时刻刻关注着商品，由我来帮您实时监测商品价格，一旦价格下降到您预设的价格时，会通过邮件主动通知您。建议您使用QQ邮箱，这样在通知时，您在QQ/微信上会收到同步的通知；（请提前将 notification@pansy.pw 设置为白名单，以免耽误您接收通知邮件）
+        <br/>
+        <br/>3. 如果使用中遇到任何问题，请添加QQ反馈：1151394385 (脚本描述页面也有联系方式)
+        <br> <img src="https://greasyfork.org/system/screenshots/screenshots/000/017/382/original/%E4%B8%8B%E8%BD%BD.png?1570195419" alt="新功能入口展示图" width="100%" />
+        <br/><br/><br/>
+        <br/>需要您留意的是，并非所有商品均支持优惠券查询与降价通知，具体以页面显示为准。若页面没有相关内容显示，则代表该商品暂不支持优惠券与降价提醒。
+        <br/>本次更新的两项功能入口均位于商品详情页主图与历史价格图表中间位置。
+        </p>`]
     }]
     class Utils {
         static timestampToDateObject(timestamp) {
@@ -325,13 +353,17 @@
     hostname.content = siteUrl
     hostname.name = 'hostname'
 
-    document.addEventListener('DOMContentLoaded', () => {
+    document.addEventListener('DOMContentLoaded', async () => {
+        // document-idle
+        console.log('page idle')
         document.head.appendChild(hostname)
-        dispatcher.onEventInvoke({ 'name': 'idle', 'dispatcher': dispatcher })
-        notification.forEach((value, index, array) => {
+        if (self != top) {
+            return
+        }
+        for (let value of notification) {
             if (value.match.exec(window.location.href) != null && true != GM_getValue(value.name, false)) {
                 const inx = I18N.isChinese() ? 1 : 0
-                Swal.fire({
+                const { value: isConfirm } = await Swal.fire({
                     title: value.title[inx],
                     html: value.message[inx],
                     type: value.type,
@@ -341,17 +373,19 @@
                     cancelButtonText: I18N.getText('alertLater'),
                     allowOutsideClick: false,
                     allowEscapeKey: false
-                }).then(result => {
-                    if (result.value) {
-                        GM_setValue(value.name, true)
-                    }
                 })
+
+                if (isConfirm) {
+                    GM_setValue(value.name, true)
+                }
             }
-        })
+        }
+        dispatcher.onEventInvoke({ 'name': 'idle', 'dispatcher': dispatcher })
     })
 
+    console.log('init')
     GM_xmlhttpRequest({
-        url: `${siteUrl}/api/v3/script?v=20190928`,
+        url: `${siteUrl}/api/v3/script?v=20191004`,
         method: "GET",
         timeout: 10000,
         headers: {
