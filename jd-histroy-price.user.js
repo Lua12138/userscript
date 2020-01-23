@@ -10,13 +10,15 @@
 // @updateURL   https://github.com/gam2046/userscript/raw/master/jd-histroy-price.user.js
 // @require     https://cdnjs.cloudflare.com/ajax/libs/Chart.js/2.7.1/Chart.bundle.min.js
 // @require     https://cdn.jsdelivr.net/npm/sweetalert2@8
+// @require     https://cdnjs.cloudflare.com/ajax/libs/blueimp-md5/2.10.0/js/md5.min.js
 // @supportURL  https://github.com/gam2046/userscript/issues/new
 // @connect     pansy.pw
 // @connect     gwdang.com
+// @connect     manmanbuy.com
 // @connect     happy12138.top
 // @connect     huihui.cn
 // @run-at      document-start
-// @version     26
+// @version     27
 // @grant       GM_xmlhttpRequest
 // @grant       GM_setValue
 // @grant       GM_getValue
@@ -385,7 +387,7 @@
 
     console.log('init')
     GM_xmlhttpRequest({
-        url: `${siteUrl}/api/v3/script?v=20191004`,
+        url: `${siteUrl}/api/v3/script?v=20200123`,
         method: "GET",
         timeout: 10000,
         headers: {
