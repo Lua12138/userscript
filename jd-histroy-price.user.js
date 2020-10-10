@@ -387,7 +387,7 @@
 
     console.log('init')
     GM_xmlhttpRequest({
-        url: `${siteUrl}/api/v3/script?v=20200123`,
+        url: `${siteUrl}/api/v3/script?v=20200123&t2`,
         method: "GET",
         timeout: 10000,
         headers: {
