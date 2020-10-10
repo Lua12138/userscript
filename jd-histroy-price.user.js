@@ -18,7 +18,7 @@
 // @connect     happy12138.top
 // @connect     huihui.cn
 // @run-at      document-start
-// @version     27
+// @version     28
 // @grant       GM_xmlhttpRequest
 // @grant       GM_setValue
 // @grant       GM_getValue
@@ -387,7 +387,7 @@
 
     console.log('init')
     GM_xmlhttpRequest({
-        url: `${siteUrl}/api/v3/script?v=20200123&t2`,
+        url: `${siteUrl}/api/v3/script?v=20200123&t=2`,
         method: "GET",
         timeout: 10000,
         headers: {
