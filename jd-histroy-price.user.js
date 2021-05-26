@@ -4,8 +4,8 @@
 // @namespace   https://github.com/gam2046/userscript
 // @description Shown histroy price of jd.com / taobao.com / taobao.com & No ADs & Coupon
 // @description:zh-CN [无广告] [慎重:会转链]] 显示京东/天猫商城/淘宝集市 历史价格，支持淘宝、天猫隐藏优惠券领取。
-// @include     /http(?:s|)://(?:item\.(?:jd|yiyaojd)\.(?:[^./]+)/\d+\.html|.+)/
-// @include     /http(?:s|)://(?:detail|item)\.(?:taobao|tmall)\.(?:[^./]+)/item.htm/
+// @include     /http(?:s|):\/\/item\.(?:jd|yiyaojd)\.(?:[^.\/]+)\/(?:\d+\.html|.+)/
+// @include     /http(?:s|):\/\/(?:detail|item)\.(?:taobao|tmall)\.(?:[^.\/]+)\/item.htm/
 // @include     /amazon\.com/
 // @updateURL   https://github.com/gam2046/userscript/raw/master/jd-histroy-price.user.js
 // @require     https://cdnjs.cloudflare.com/ajax/libs/Chart.js/2.7.1/Chart.bundle.min.js
